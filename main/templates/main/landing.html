@@ -1,0 +1,639 @@
+{% extends "main/skeleton.html" %}
+{% block content %}
+<!-- <!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+    <title>EasyTP SERVER - Cloud-Native File Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+
+    <style>
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        
+        .main-navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            margin-bottom: 0;
+        }
+        
+        .main-navbar .item {
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .main-navbar .item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+        
+        .landing-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            margin-top: 0;
+            padding-top: 80px;
+        }
+        
+        .landing-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        .hero-title {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 1s ease;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.4rem;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+            font-weight: 400;
+            line-height: 1.6;
+            animation: fadeInUp 1s ease 0.2s both;
+        }
+        
+        .tech-badges {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 2rem 0;
+            animation: fadeInUp 1s ease 0.4s both;
+        }
+        
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            padding: 0.7rem 1.5rem;
+            color: white;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .tech-badge:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+        
+        .cta-buttons {
+            margin-top: 3rem;
+            animation: fadeInUp 1s ease 0.6s both;
+        }
+        
+        .action-button {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+        
+        .action-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4);
+            background: linear-gradient(45deg, #ff5252, #ff7979);
+        }
+        
+        .secondary-button {
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            color: white;
+            font-weight: 500;
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            margin-left: 1rem;
+        }
+        
+        .secondary-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: white;
+            transform: translateY(-2px);
+        }
+        
+        .content-section {
+            background: white;
+            padding: 5rem 0;
+            position: relative;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2.5rem;
+            margin: 3rem 0;
+        }
+        
+        .feature-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid #f0f0f0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+        
+        .feature-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+        }
+        
+        .feature-icon.cloud {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .feature-icon.k8s {
+            background: linear-gradient(135deg, #326ce5, #1a4480);
+            color: white;
+        }
+        
+        .feature-icon.hetzner {
+            background: linear-gradient(135deg, #d50000, #b71c1c);
+            color: white;
+        }
+        
+        .feature-icon.security {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+        
+        .stats-section {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 4rem 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .deployment-showcase {
+            background: #f8f9fa;
+            padding: 5rem 0;
+        }
+        
+        .deployment-card {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin: 2rem 0;
+            border-left: 5px solid #667eea;
+        }
+        
+        .code-snippet {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        
+        .github-link {
+            background: linear-gradient(135deg, #24292e, #586069);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .github-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(36, 41, 46, 0.3);
+            color: white;
+        }
+        
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        
+        .section-subtitle {
+            font-size: 1.2rem;
+            text-align: center;
+            color: #6c757d;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.2rem;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .secondary-button {
+                margin-left: 0;
+                margin-top: 1rem;
+            }
+        }
+    </style>
+</head> -->
+
+<!-- <body> -->
+    <!-- Navigation -->
+    <!-- <div class="ui menu main-navbar">
+        <div class="ui container">
+            <a class="item" href="/" style="font-weight: 600; color: #667eea;">
+                <i class="server icon"></i>
+                EasyTP SERVER
+            </a>
+            <div class="right menu">
+                <a class="item" href="#features">Features</a>
+                <a class="item" href="#deployment">Deployment</a>
+                <a class="item" href="https://github.com/TheDhm/EasyTP" target="_blank">
+                    <i class="github icon"></i>
+                    GitHub
+                </a>
+                <a class="item" href="#" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; border-radius: 25px; margin-left: 1rem;">
+                    <i class="sign in icon"></i>
+                    Try Demo
+                </a>
+            </div>
+        </div>
+    </div> -->
+
+    <!-- Hero Section -->
+    <div class="landing-hero">
+        <div class="hero-content">
+            <h1 class="hero-title">EasyTP SERVER</h1>
+            <p class="hero-subtitle">
+                Cloud-native labs & storage management platform deployed on Hetzner Cloud with Kubernetes (k3s).
+                Experience modern infrastructure with enterprise-grade scalability and performance.
+            </p>
+            
+            <div class="tech-badges">
+                <span class="tech-badge">
+                    <i class="cloud icon"></i>
+                    Hetzner Cloud
+                </span>
+                <span class="tech-badge">
+                    <i class="sitemap icon"></i>
+                    Kubernetes (k3s)
+                </span>
+                <span class="tech-badge">
+                    <i class="docker icon"></i>
+                    Docker
+                </span>
+                <span class="tech-badge">
+                    <i class="code icon"></i>
+                    Django
+                </span>
+                <span class="tech-badge">
+                    <i class="shield alternate icon"></i>
+                    Cloud-Native
+                </span>
+            </div>
+            {%if not request.user.is_authenticated%}
+            <div class="cta-buttons">
+                <a href="{% url 'main:signup_request' %}" class="ui huge button action-button">
+                    <i class="rocket icon"></i>
+                    Sign in to Try Live Demo
+                </a>
+                <a href="{% url 'main:continue_as_guest' %}" class="ui huge button action-button">
+                    <i class="star icon"></i>
+                    Or Continue as Guest
+                </a>
+            </div>
+            {%else%}
+            <div class="cta-buttons">
+                <a href="{% url 'main:homepage' %}" class="ui huge button action-button">
+                    <i class="rocket icon"></i>
+                    Try Live Demo
+                </a>
+            </div>
+            {% endif %}
+            <div class="cta-buttons">
+                <a href="https://github.com/TheDhm/EasyTP" target="_blank" class="ui huge button secondary-button">
+                    <i class="github icon"></i>
+                    View Source
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="content-section" id="features">
+        <div class="ui container">
+            <h2 class="section-title">Modern Cloud Infrastructure</h2>
+            <p class="section-subtitle">
+                Built with cutting-edge technologies and deployed on enterprise-grade infrastructure
+            </p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon cloud">
+                        <i class="cloud icon"></i>
+                    </div>
+                    <h3 class="ui header" style="color: #2c3e50; margin-bottom: 1rem;">
+                        Hetzner Cloud Deployment
+                        <div class="sub header" style="color: #6c757d; font-weight: 400;">
+                            Deployed on Hetzner's high-performance cloud infrastructure with SSD storage and premium networking
+                        </div>
+                    </h3>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon k8s">
+                        <i class="sitemap icon"></i>
+                    </div>
+                    <h3 class="ui header" style="color: #2c3e50; margin-bottom: 1rem;">
+                        Kubernetes Orchestration
+                        <div class="sub header" style="color: #6c757d; font-weight: 400;">
+                            Leveraging k3s for lightweight, production-ready Kubernetes with automated scaling and healing
+                        </div>
+                    </h3>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon hetzner">
+                        <i class="server icon"></i>
+                    </div>
+                    <h3 class="ui header" style="color: #2c3e50; margin-bottom: 1rem;">
+                        Enterprise Performance
+                        <div class="sub header" style="color: #6c757d; font-weight: 400;">
+                            High-availability setup with load balancing, persistent storage, and 99.9% uptime SLA
+                        </div>
+                    </h3>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon security">
+                        <i class="shield alternate icon"></i>
+                    </div>
+                    <h3 class="ui header" style="color: #2c3e50; margin-bottom: 1rem;">
+                        Cloud-Native Security
+                        <div class="sub header" style="color: #6c757d; font-weight: 400;">
+                            Container security, network policies, TLS encryption, and automated security updates
+                        </div>
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deployment Showcase -->
+    <div class="deployment-showcase" id="deployment">
+        <div class="ui container">
+            <h2 class="section-title">Deployment Architecture</h2>
+            <p class="section-subtitle">
+                Explore the cloud-native architecture powering EasyTP SERVER
+            </p>
+            
+            <div class="deployment-card">
+                <div class="ui grid">
+                    <div class="eight wide column">
+                        <h3 style="color: #2c3e50; margin-bottom: 1rem;">
+                            <i class="cube icon" style="color: #667eea;"></i>
+                            Kubernetes Deployment
+                        </h3>
+                        <p style="color: #6c757d; line-height: 1.6;">
+                            EasyTP is deployed using k3s on Hetzner Cloud, providing a lightweight yet powerful Kubernetes experience. 
+                            The application runs in containers with automated scaling, health checks, and zero-downtime deployments.
+                        </p>
+                        <div class="ui list">
+                            <div class="item">
+                                <i class="check circle icon" style="color: #27ae60;"></i>
+                                <div class="content">Automated container orchestration</div>
+                            </div>
+                            <div class="item">
+                                <i class="check circle icon" style="color: #27ae60;"></i>
+                                <div class="content">Horizontal pod autoscaling</div>
+                            </div>
+                            <div class="item">
+                                <i class="check circle icon" style="color: #27ae60;"></i>
+                                <div class="content">Persistent volume storage</div>
+                            </div>
+                            <div class="item">
+                                <i class="check circle icon" style="color: #27ae60;"></i>
+                                <div class="content">Rolling updates with health checks</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="eight wide column">
+                        <div class="code-snippet">
+# Example k3s deployment configuration
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: easytp-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: easytp
+  template:
+    spec:
+      containers:
+      - name: easytp
+        image: easytp:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: easytp-secrets
+              key: database-url
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="deployment-card">
+                <div class="ui center aligned container">
+                    <h3 style="color: #2c3e50; margin-bottom: 2rem;">
+                        <i class="github icon" style="color: #24292e;"></i>
+                        Open Source & Available on GitHub
+                    </h3>
+                    <p style="color: #6c757d; font-size: 1.1rem; margin-bottom: 2rem;">
+                        Complete source code, Kubernetes manifests, and deployment scripts available for exploration and contribution.
+                    </p>
+                    <a href="https://github.com/TheDhm/EasyTP" target="_blank" class="github-link">
+                        <i class="github icon"></i>
+                        View on GitHub
+                        <i class="external alternate icon"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="content-section" style="background: #2c3e50; color: white; padding: 3rem 0;">
+        <div class="ui container">
+            <div class="ui center aligned basic segment" style="border: none;">
+                <div class="ui horizontal divider" style="color: rgba(255, 255, 255, 0.3); margin: 2rem 0;">
+                    <i class="heart icon"></i>
+                    Built with Modern DevOps
+                </div>
+                <p style="color: rgba(255, 255, 255, 0.8);">&copy; 2025 EasyTP SERVER. Cloud-native educational labs and application management platform.</p>
+                <p style="color: rgba(255, 255, 255, 0.6);">
+                    Powered by Hetzner Cloud • Orchestrated with k3s • Built with Django
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- <script>
+        $(document).ready(function() {
+            // Smooth scrolling for anchor links
+            $('a[href^="#"]').on('click', function(event) {
+                var target = $(this.getAttribute('href'));
+                if( target.length ) {
+                    event.preventDefault();
+                    $('html, body').stop().animate({
+                        scrollTop: target.offset().top - 80
+                    }, 1000);
+                }
+            });
+
+            // Parallax effect for hero background
+            $(window).scroll(function() {
+                var scrollTop = $(this).scrollTop();
+                $('.landing-hero').css('background-position', 'center ' + (scrollTop * 0.5) + 'px');
+            });
+
+            // Add scroll effect to navbar
+            $(window).scroll(function() {
+                if ($(this).scrollTop() > 50) {
+                    $('.main-navbar').css('background', 'rgba(255, 255, 255, 0.98)');
+                } else {
+                    $('.main-navbar').css('background', 'rgba(255, 255, 255, 0.95)');
+                }
+            });
+        });
+    </script> -->
+<!-- </body>
+</html> -->
+{% endblock %}

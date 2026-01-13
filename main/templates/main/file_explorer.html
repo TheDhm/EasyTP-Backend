@@ -1,0 +1,442 @@
+{% extends "main/skeleton.html" %}
+{% block content %}
+<div class="ui container">
+    {%if not authenticated%}
+    <div class="content-card">
+        <div class="ui icon message">
+            <i class="user slash icon"></i>
+            <div class="content">
+                <div class="header">Authentication Required</div>
+                <p>Please connect first to access your machines.</p>
+            </div>
+        </div>
+        <div class="ui center aligned basic segment">
+            <a href="{% url 'main:login_request' %}" class="ui primary button">
+                <i class="sign-in icon"></i>
+                Connect Now
+            </a>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Page Header -->
+    <!-- <div class="page-header">
+        <div class="ui stackable grid">
+            <div class="twelve wide column">
+                <h1 class="ui header page-title">
+                    <i class="teal folder open icon"></i>
+                    <div class="teal content">
+                        File Explorer
+                        <div class="sub header page-subtitle">Manage your files and storage space</div>
+                    </div>
+                </h1>
+            </div>
+            <div class="four wide column">
+                <div class="ui right floated buttons">
+                    <a href="{% url 'main:homepage' %}" class="ui button">
+                        <i class="dashboard icon"></i>
+                        Dashboard
+                    </a>
+                    <div class="ui simple dropdown button">
+                        <i class="ellipsis vertical icon"></i>
+                        <div class="menu">
+                            <div class="item">
+                                <a href="{% url 'main:test_apps' %}"></a>
+                                <i class="desktop icon"></i>
+                                Applications
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> -->
+
+    <div class="dashboard-card">        
+        <div class="ui center aligned basic segment">
+            <i class="teal huge folder open icon" style="color: #27ae60;"></i>
+            <h2 class="ui teal header" style="margin-top: 1rem;">
+                File Explorer
+                <div class="sub header">Manage your files and storage space</div>
+            </h2>
+        </div>
+    
+
+        
+
+        <!-- Storage Usage -->
+        {% if not is_readonly %}
+        <div class="content-card">
+            <div class="ui grid">
+                <div class="twelve wide column">
+                    <h3 class="ui header">
+                        <i class="teal database icon"></i>
+                        <div class="content">
+                            Storage Usage
+                            <div class="sub header">{{ actual_usage|floatformat:2 }} MB of {{ user.upload_limit|floatformat:0 }} MB used</div>
+                        </div>
+                    </h3>
+                </div>
+                <div class="four wide column">
+                    <div class="ui right aligned basic segment">
+                        {% if storage_percentage < 50 %}
+                            <i class="check circle green large icon"></i>
+                            <div class="ui green text">Good</div>
+                        {% elif storage_percentage < 80 %}
+                            <i class="exclamation triangle yellow large icon"></i>
+                            <div class="ui yellow text">Moderate</div>
+                        {% else %}
+                            <i class="warning circle red large icon"></i>
+                            <div class="ui red text">High</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="ui indicating progress storage-usage" data-percent="{{ storage_percentage|floatformat:1 }}">
+                <div class="bar center aligned">
+                    <div class="progress">{{ storage_percentage|floatformat:1 }}%</div>
+                </div>
+                <div class="label">
+                    {% if storage_percentage < 50 %}
+                        Plenty of space available
+                    {% elif storage_percentage < 80 %}
+                        Getting full
+                    {% else %}
+                        Storage nearly full
+                    {% endif %}
+                </div>
+            </div>
+            {% if storage_percentage > 90 %}
+            <div class="ui warning message" style="margin-top: 1rem;">
+                <i class="warning icon"></i>
+                Consider cleaning up old files to free up space.
+            </div>
+            {% endif %}
+        
+        </div>
+        {% endif %}
+        <!-- Breadcrumb Navigation -->
+        <div class="breadcrumb-nav">
+            <div class="ui breadcrumb">
+                <a class="section" href="{% url 'main:file_explorer' %}">
+                    <i class="home icon"></i>
+                    Root
+                </a>
+                {% if current_path != '/' %}
+                    <i class="right angle icon divider"></i>
+                    <div class="active section">
+                        <i class="teal folder icon"></i>
+                        {{ current_path }}
+                    </div>
+                {% endif %}
+            </div>
+            {% if parent_path_encoded != '' %}
+                <div class="ui right floated mini basic button">
+                    <a href="{% url 'main:file_explorer' path=parent_path_encoded %}">
+                        <i class="level up alternate icon"></i>
+                        Up One Level
+                    </a>
+                </div>
+            {% else %}
+            <div class="ui right floated mini basic button">
+                    <a href="{% url 'main:file_explorer' %}">
+                        <i class="level up alternate icon"></i>
+                        Up One Level
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Upload Section -->
+        {% if not is_readonly %}
+        <div class="content-card">
+            <h3 class="ui header">
+                <i class="teal cloud upload icon"></i>
+                <div class="content">
+                    Upload Files
+                    <div class="sub header">Maximum file size: 10MB</div>
+                </div>
+            </h3>
+            
+            <form class="ui form" enctype="multipart/form-data" method="post" id="uploadForm">
+                {% csrf_token %}
+                <div class="upload-area">
+                    <div class="ui action input fluid">
+                        {{ form.file }}
+                        <button class="ui teal button" type="submit">
+                            <i class="upload icon"></i>
+                            Upload
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Messages -->
+                {% if form.errors %}
+                <div class="ui error message">
+                    <div class="header">Upload Failed</div>
+                    <ul class="list">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error|escape }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="ui {{ message.tags }} message">
+                            <i class="{% if message.tags == 'success' %}checkmark{% elif message.tags == 'error' %}times{% else %}info{% endif %} icon"></i>
+                            <div class="content">{{ message|escape }}</div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </form>
+        </div>
+        {% else %}
+        <div class="ui info message">
+            <i class="lock icon"></i>
+            <div class="content">
+                <div class="header">Read-Only Access</div>
+                <p>You can browse and download files but cannot upload or delete.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Files Table -->
+        <div class="table-wrapper">
+            <div class="ui attached tabular menu">
+                <div class="active item">
+                    <i class="list icon"></i>
+                    Files & Folders
+                </div>
+                <div class="right menu">
+                    <div class="item">
+                        <button class="ui mini basic button" onclick="location.reload()">
+                            <i class="refresh icon"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            {% if data %}
+            <table class="ui attached table">
+                <thead>
+                    <tr>
+                        <th class="left aligned">
+                            <i class="teal file icon"></i>
+                            Name
+                        </th>
+                        <th class="center aligned collapsing">Size</th>
+                        <th class="center aligned collapsing">Download</th>
+                        {% if not is_readonly %}
+                        <th class="center aligned collapsing">Delete</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file, values in data.items %}
+                    <tr class="file-row">
+                        {% if values.is_dir %}
+                        <td class="left aligned">
+                            <a href="{% url 'main:file_explorer' path=values.path %}">
+                                <i class="folder icon"></i>
+                                {{ values.escaped_name }}
+                            </a>
+                        </td>
+                        <td class="center aligned">—</td>
+                        <td class="center aligned">—</td>
+                        {% if not is_readonly %}
+                        <td class="center aligned">—</td>
+                        {% endif %}
+                        {% else %}
+                        <td class="left aligned">
+                            <i class="teal file icon"></i>
+                            {{ values.escaped_name }}
+                            {% if values.size %}
+                            <div class="ui small grey text">{{ values.size|filesizeformat }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="center aligned">
+                            {% if values.size %}
+                            <div class="ui label">{{ values.size|filesizeformat }}</div>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="center aligned">
+                            <a class="ui icon button mini" href="{% url 'main:download_file' path=values.path %}">
+                                <i class="download icon"></i>
+                            </a>
+                        </td>
+                        {% if not is_readonly %}
+                        <td class="center aligned">
+                            <button class="ui red icon button mini delete-file" 
+                                    data-path="{{ values.path }}" 
+                                    data-filename="{{ values.escaped_name }}">
+                                <i class="trash icon"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="ui attached segment">
+                <!-- <div class="ui placeholder">
+                    <div class="image header">
+                        <div class="line"></div>
+                        <div class="line"></div>
+                    </div>
+                    <div class="paragraph">
+                        <div class="line"></div>
+                        <div class="line"></div>
+                    </div>
+                </div> -->
+                <div class="ui center aligned basic segment">
+                    <h3 class="ui grey header">
+                        <i class="folder open outline icon"></i>
+                        This folder is empty
+                    </h3>
+                    {% if not is_readonly %}
+                    <button class="ui primary button" onclick="document.querySelector('input[type=file]').click()">
+                        <i class="plus icon"></i>
+                        Upload your first file
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% endif %}
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="ui small modal" id="deleteModal">
+        <div class="header">
+            <i class="trash alternate outline icon"></i>
+            Confirm File Deletion
+        </div>
+        <div class="content">
+            <div class="ui warning message">
+                <div class="header">Are you sure?</div>
+                <p>You are about to permanently delete <strong id="deleteFileName"></strong>.</p>
+                <p><i class="warning sign icon"></i>This action cannot be undone.</p>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui cancel button">
+                <i class="remove icon"></i>
+                Cancel
+            </div>
+            <form method="post" id="deleteForm" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="file_path" id="deleteFilePath">
+                <button class="ui red ok button" type="submit">
+                    <i class="trash icon"></i>
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // File size validation
+        const maxFileSize = 10 * 1024 * 1024;
+        const fileInput = document.querySelector('input[type="file"]');
+        
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file && file.size > maxFileSize) {
+                    alert('File size must not exceed 10MB. Selected file is ' + (file.size / 1024 / 1024).toFixed(2) + 'MB');
+                    e.target.value = '';
+                    return false;
+                }
+            });
+        }
+        
+        // Delete file functionality
+        const deleteButtons = document.querySelectorAll('.delete-file');
+        const deleteModal = document.getElementById('deleteModal');
+        const deleteForm = document.getElementById('deleteForm');
+        const deleteFileName = document.getElementById('deleteFileName');
+        const deleteFilePath = document.getElementById('deleteFilePath');
+        
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const filePath = this.getAttribute('data-path');
+                const fileName = this.getAttribute('data-filename');
+                
+                deleteFileName.textContent = fileName;
+                deleteFilePath.value = filePath;
+                
+                $(deleteModal).modal('show');
+            });
+        });
+        
+        // Initialize progress bar
+        const progressBar = document.querySelector('.ui.progress');
+        if (progressBar) {
+            const percentage = progressBar.getAttribute('data-percent');
+            $(progressBar).progress({
+                percent: percentage
+            });
+        }
+
+        // Initialize dropdown
+        $('.ui.dropdown').dropdown();
+    });
+    </script>
+
+    <style>
+    /* Storage Progress Bar Colors */
+    .ui.progress.storage-usage .bar {
+        transition: width 0.3s ease, background-color 0.3s ease;
+    }
+
+    /* Green for low usage (0-50%) */
+    .ui.progress.storage-usage[data-percent^="0"] .bar,
+    .ui.progress.storage-usage[data-percent^="1"] .bar,
+    .ui.progress.storage-usage[data-percent^="2"] .bar,
+    .ui.progress.storage-usage[data-percent^="3"] .bar,
+    .ui.progress.storage-usage[data-percent^="4"] .bar,
+    .ui.progress.storage-usage[data-percent="50"] .bar {
+        background-color: #21BA45 !important;
+    }
+
+    /* Yellow for medium usage (51-80%) */
+    .ui.progress.storage-usage[data-percent^="5"]:not([data-percent="50"]) .bar,
+    .ui.progress.storage-usage[data-percent^="6"] .bar,
+    .ui.progress.storage-usage[data-percent^="7"] .bar,
+    .ui.progress.storage-usage[data-percent="80"] .bar {
+        background-color: #FBBD08 !important;
+    }
+
+    /* Red for high usage (81-100%) */
+    .ui.progress.storage-usage[data-percent^="8"]:not([data-percent="80"]) .bar,
+    .ui.progress.storage-usage[data-percent^="9"] .bar,
+    .ui.progress.storage-usage[data-percent="100"] .bar {
+        background-color: #DB2828 !important;
+    }
+
+    /* Additional styling */
+    .upload-area .ui.input input {
+        border: none;
+        background: transparent;
+    }
+    
+    .upload-area:hover .ui.input input {
+        background: white;
+    }
+    </style>
+</div>
+{% endblock %}

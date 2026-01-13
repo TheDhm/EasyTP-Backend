@@ -1,0 +1,69 @@
+{% extends "main/skeleton.html" %}
+{% block content %}
+<div class="ui container">
+    {% if not request.user.is_authenticated %}
+        <div class="dashboard-card">
+            <div class="ui center aligned basic segment">
+                <i class="huge exclamation triangle icon" style="color: #e74c3c;"></i>
+                <h2 class="ui red header" style="margin-top: 1rem;">
+                    Unauthorised access
+                    <div class="sub header">Please log in to access your machines</div>
+                </h2>
+                <div style="margin-top: 2rem;">
+                    <a href="{% url 'main:login_request' %}" class="ui button action-button">
+                        <i class="sign in icon"></i>
+                        Sign in
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="dashboard-card"> 
+                   
+            <div class="ui center aligned basic segment">
+                <i class="huge cog icon" style="color: #27ae60;"></i>
+                <h2 class="ui green header" style="margin-top: 1rem;">
+                    Dashboard
+                    <div class="sub header">Manage your storage and applications</div>
+                    <div class="ui divider"></div>
+                    <div class="sub header">Note: Your stored files are shared with your applications, once you save your files while working on your machines you can upload & download them later from your storage (file explorer).</div>
+
+                </h2>
+            </div>
+            
+            <div class="ui two column stackable grid" style="margin-top: 2rem;">
+                <div class="column">
+                    <div class="feature-card">
+                        <div class="ui center aligned basic segment" style="padding: 1rem 0;">
+                            <i class="huge folder open icon" style="color: #3498db;"></i>
+                            <h3 class="ui header" style="color: #333; margin-top: 1rem;">
+                                My Storage
+                                <div class="sub header">Manage your files and folders</div>
+                            </h3>
+                            <a href="{% url 'main:file_explorer' %}" class="ui button action-button" style="margin-top: 1rem;">
+                                <i class="folder open icon"></i>
+                                Access
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="column">
+                    <div class="feature-card">
+                        <div class="ui center aligned basic segment" style="padding: 1rem 0;">
+                            <i class="huge desktop icon" style="color: #9b59b6;"></i>
+                            <h3 class="ui header" style="color: #333; margin-top: 1rem;">
+                                My Applications
+                                <div class="sub header">Launch and manage your apps</div>
+                            </h3>
+                            <a href="{% url 'main:test_apps' %}" class="ui button action-button" style="margin-top: 1rem;">
+                                <i class="desktop icon"></i>
+                                Access
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,410 @@
+{% extends "main/skeleton.html" %}
+{% block content %}
+<div class="ui container">
+    {% if not request.user.is_authenticated %}
+        <div class="dashboard-card">
+            <div class="ui center aligned basic segment">
+                <i class="huge exclamation triangle icon" style="color: #e74c3c;"></i>
+                <h2 class="ui red header" style="margin-top: 1rem;">
+                    Unauthorised access
+                    <div class="sub header">Please log in to access your applications</div>
+                </h2>
+                <div style="margin-top: 2rem;">
+                    <a href="{% url 'main:login_request' %}" class="ui button action-button">
+                        <i class="sign in icon"></i>
+                        Sign in
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="dashboard-card">
+            
+            <div class="ui center aligned basic segment" style="padding: 0; margin-bottom: 2rem;">
+                <i class="huge desktop icon" style="color: #9b59b6;"></i>
+                <h2 class="ui header" style="margin-top: 1rem; color: #333;">
+                    My Applications
+                    <div class="sub header" style="color: #666;">Manage your virtual machines</div>
+                </h2>
+            </div>
+            
+            <div class="apps-grid">
+                {% for application, values in data.items %}
+                    <div class="app-card" data-app="{{ application }}">
+                        <div class="app-header">
+                            <div class="app-title">
+                                <i class="server icon"></i>
+                                {{ application }}
+                            </div>
+                            <div class="center aligned app-status">
+                                {% if values.deployment_status %}
+                                    <span class="status-badge status-online ">
+                                        <!-- <i class="circle icon"></i> -->
+                                        Online
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge status-offline">
+                                        <!-- <i class="circle icon"></i> -->
+                                        Offline
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if values.is_deployed %}
+                            <div class="app-content">
+                                <div class="connection-info">
+                                    {% if values.novnc_url and values.deployment_status %}
+                                        <!-- New: Clean URL display -->
+                                        <div class="info-item">
+                                            <label>Direct Link to your machine:</label>
+                                            <a href="{{ values.novnc_url }}/vnc.html?password={{values.vnc_pass}}&path=vnc&autoconnect=true&resize=remote&reconnect=true&show_dot=true" target="_blank" class="connection-link">
+                                                <i class="external alternate icon"></i>
+                                                {{ values.novnc_url }}
+                                            </a>
+                                        </div>
+                                        
+                                        <div class="info-item">
+                                            <label>VNC Password:</label>
+                                            <div class="password-display">
+                                                <code>{{values.vnc_pass}}</code>
+                                                <button class="ui mini icon button" onclick="copyToClipboard('{{values.vnc_pass}}')">
+                                                    <i class="copy icon"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <!-- Fallback: Show "En cours de démarrage" -->
+                                        <div class="info-item">
+                                            <div class="loading-message">
+                                                <i class="spinner loading icon"></i>
+                                                <span>Starting up... Please wait.</span>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="app-actions">
+                                    {% if values.novnc_url and values.deployment_status %}
+                                        <!-- Direct connection with auto-login -->
+                                        <a href="{{ values.novnc_url }}/vnc.html?password={{values.vnc_pass}}&path=vnc&autoconnect=true&resize=remote&reconnect=true&show_dot=true" 
+                                           target="_blank" class="ui button action-button">
+                                            <i class="desktop icon"></i>
+                                            Direct Connection
+                                        </a>
+                                    
+                                    {% else %}
+                                        <!-- Show refresh button while starting -->
+                                        <button onclick="location.reload()" class="ui basic button refresh-button">
+                                            <i class="refresh icon"></i>
+                                            Refresh
+                                        </button>
+                                    {% endif %}
+                                    
+                                    <a href="{% url 'main:stop_pod' app_name=application %}" class="ui orange button">
+                                        <i class="pause icon"></i>
+                                        Stop
+                                    </a>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="app-content">
+                                <div class="offline-message">
+                                    <i class="power off icon" style="font-size: 3rem; color: #e74c3c; margin-bottom: 1rem;"></i>
+                                    <p>This machine is currently stopped</p>
+                                </div>
+                                
+                                <div class="app-actions">
+                                    <a href="{% url 'main:start_pod' app_name=application %}" 
+                                        class="ui button action-button start-btn" 
+                                        data-app="{{ application }}">
+                                        <i class="play icon"></i>
+                                        Start Machine*
+                                    </a>
+                                </div> 
+                                <div class="ui mini message">
+                                    * 3-minute demo. This is a test server, so it may be saturated and your application may take a few seconds to start up.
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <div class="empty-apps">
+                        <i class="huge desktop icon" style="color: #bdc3c7;"></i>
+                        <h3 style="color: #7f8c8d; margin-top: 1rem;">No Applications Available</h3>
+                        <p style="color: #95a5a6;">You have not configured any applications yet.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.apps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.app-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    animation: slideUp 0.6s ease-out;
+}
+
+.app-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.app-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.status-online {
+    background: rgba(46, 204, 113, 0.2);
+    color: #27ae60;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.status-offline {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.status-badge .circle.icon {
+    font-size: 0.8rem;
+}
+
+.app-content {
+    padding: 2rem;
+}
+
+.connection-info {
+    margin-bottom: 2rem;
+}
+
+.info-item {
+    margin-bottom: 1.5rem;
+}
+
+.info-item label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.connection-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.2rem;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    word-break: break-all;
+}
+
+.connection-link:hover {
+    background: rgba(102, 126, 234, 0.2);
+    transform: translateX(2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.password-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.password-display code {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #333;
+}
+
+.loading-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: rgba(52, 152, 219, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+    color: #3498db;
+    font-weight: 500;
+}
+
+.loading-message .spinner.icon {
+    color: #3498db;
+}
+
+.app-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.app-actions .ui.button {
+    border-radius: 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.app-actions .ui.button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.offline-message {
+    text-align: center;
+    padding: 2rem 0;
+    color: #666;
+}
+
+.empty-apps {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 20px;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+/* Auto-refresh animation */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .apps-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .app-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .app-actions {
+        flex-direction: column;
+    }
+    
+    .connection-link {
+        font-size: 0.9rem;
+        padding: 0.6rem 1rem;
+    }
+}
+
+/* Enhanced button styles */
+.action-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.action-button:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+}
+
+.ui.teal.button {
+    background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%) !important;
+    color: white !important;
+}
+
+.ui.teal.button:hover {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+}
+</style>
+
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        const button = event.target.closest('button');
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="check icon"></i>';
+        button.style.color = '#27ae60';
+        
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+            button.style.color = '';
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+
+// Auto-refresh functionality - only when refresh buttons are present
+document.addEventListener('DOMContentLoaded', function() {
+    function checkForRefreshButtons() {
+        const refreshButtons = document.querySelectorAll('.refresh-button');
+        return refreshButtons.length > 0;
+    }
+    
+    function startAutoRefresh() {
+        // Only start auto-refresh if refresh buttons are present
+        if (checkForRefreshButtons()) {
+            console.log('Starting auto-refresh - applications are starting up...');
+            setTimeout(() => {
+                // Check again before refreshing to make sure refresh buttons are still there
+                if (checkForRefreshButtons()) {
+                    location.reload();
+                }
+            }, 3000); // 3 seconds
+        }
+    }
+    
+    // Start the auto-refresh check
+    startAutoRefresh();
+});
+</script>
+{% endblock %}

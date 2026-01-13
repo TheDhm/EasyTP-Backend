@@ -1,0 +1,450 @@
+{% extends "main/skeleton.html" %}
+{% block content %}    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        User Activities Dashboard
+                    </h1>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" onclick="refreshData()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <div class="dropdown export-options">
+                            <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="?export=csv{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.activity_type %}&activity_type={{ request.GET.activity_type }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-file-csv me-2"></i>CSV
+                                </a></li>
+                                <li><a class="dropdown-item" href="?export=excel{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.activity_type %}&activity_type={{ request.GET.activity_type }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-file-excel me-2"></i>Excel
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                            <h4>{{ stats.total_activities }}</h4>
+                            <p class="mb-0">Total Activities</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-calendar-day fa-2x mb-2"></i>
+                            <h4>{{ stats.today_activities }}</h4>
+                            <p class="mb-0">Today's Activities</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-calendar-week fa-2x mb-2"></i>
+                            <h4>{{ stats.week_activities }}</h4>
+                            <p class="mb-0">This Week</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card text-center">
+                            <i class="fas fa-users fa-2x mb-2"></i>
+                            <h4>{{ stats.unique_users }}</h4>
+                            <p class="mb-0">Active Users</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Filters Section -->
+                <div class="filter-section">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">User</label>
+                            {{ filter_form.user }}
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Activity Type</label>
+                            {{ filter_form.activity_type }}
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Start Date</label>
+                            {{ filter_form.start_date }}
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">End Date</label>
+                            {{ filter_form.end_date }}
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Search Bar -->
+                        <div class="col-12">
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="search" 
+                                       placeholder="Search by username, email, or IP address..." 
+                                       value="{{ search_query }}">
+                                <button class="btn btn-outline-secondary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <a href="?" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear Filters
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Activities List -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list"></i>
+                            Recent Activities ({{ page_obj.paginator.count }} total)
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if page_obj %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Activity</th>
+                                            <th>Details</th>
+                                            <th>IP Address</th>
+                                            <th>Timestamp</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for activity in page_obj %}
+                                        <tr class="activity-{{ activity.activity_type }}">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="user-avatar me-2">
+                                                        {{ activity.username|first|upper }}
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-semibold">{{ activity.username }}</div>
+                                                        <small class="text-muted">{{ activity.user.get_role_display }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="activity-icon {{ activity.activity_type }} me-2">
+                                                        {% if activity.activity_type == 'login' %}
+                                                            <i class="fas fa-sign-in-alt"></i>
+                                                        {% elif activity.activity_type == 'logout' %}
+                                                            <i class="fas fa-sign-out-alt"></i>
+                                                        {% elif activity.activity_type == 'pod_start' %}
+                                                            <i class="fas fa-play-circle"></i>
+                                                        {% elif activity.activity_type == 'pod_stop' %}
+                                                            <i class="fas fa-stop-circle"></i>
+                                                        {% elif activity.activity_type == 'file_upload' %}
+                                                            <i class="fas fa-upload"></i>
+                                                        {% elif activity.activity_type == 'file_delete' %}
+                                                            <i class="fas fa-trash"></i>
+                                                        {% elif activity.activity_type == 'file_download' %}
+                                                            <i class="fas fa-download"></i>
+                                                        {% elif activity.activity_type == 'account_created' %}
+                                                            <i class="fas fa-user-plus"></i>
+                                                        {% elif activity.activity_type == 'page_view' %}
+                                                            <i class="fas fa-eye"></i>
+                                                        {% endif %}
+                                                    </div>
+                                                    <span class="fw-semibold">{{ activity.get_activity_type_display }}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if activity.details %}
+                                                    <div class="activity-details">
+                                                        {% if activity.details.app_name %}
+                                                            <span class="badge bg-info mb-1">{{ activity.details.app_name }}</span>
+                                                        {% endif %}
+                                                        {% if activity.details.filename %}
+                                                            <div class="small">
+                                                                <i class="fas fa-file me-1"></i>{{ activity.details.filename }}
+                                                                {% if activity.details.file_size_mb %}
+                                                                    <span class="text-muted">({{ activity.details.file_size_mb|floatformat:2 }} MB)</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% endif %}
+                                                        {% if activity.details.pod_name %}
+                                                            <div class="small text-muted">Pod: {{ activity.details.pod_name }}</div>
+                                                        {% endif %}
+                                                        {% if activity.details.session_duration %}
+                                                            <div class="small text-muted">Duration: {{ activity.details.session_duration }}</div>
+                                                        {% endif %}
+                                                        {% if activity.details.error_message %}
+                                                            <div class="small text-danger">Error: {{ activity.details.error_message }}</div>
+                                                        {% endif %}
+                                                        {% if activity.details.page_path %}
+                                                            <div class="small">
+                                                                <i class="fas fa-link me-1"></i>{{ activity.details.page_path }}
+                                                                {% if activity.details.http_method %}
+                                                                    <span class="badge bg-secondary ms-1">{{ activity.details.http_method }}</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% endif %}
+                                                        {% if activity.details.referrer %}
+                                                            <div class="small text-muted">
+                                                                <i class="fas fa-external-link-alt me-1"></i>From: {{ activity.details.referrer|truncatechars:50 }}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if activity.ip_address %}
+                                                    <code class="small">{{ activity.ip_address }}</code>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="small">
+                                                    <div>{{ activity.timestamp|date:"M d, Y" }}</div>
+                                                    <div class="text-muted">{{ activity.timestamp|time:"H:i:s" }}</div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Pagination -->
+                            {% if page_obj.has_other_pages %}
+                            <div class="card-footer">
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination justify-content-center mb-0">
+                                        {% if page_obj.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page=1{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.activity_type %}&activity_type={{ request.GET.activity_type }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">First</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.activity_type %}&activity_type={{ request.GET.activity_type }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        <li class="page-item active">
+                                            <span class="page-link">
+                                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                            </span>
+                                        </li>
+                                        
+                                        {% if page_obj.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.activity_type %}&activity_type={{ request.GET.activity_type }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.user %}&user={{ request.GET.user }}{% endif %}{% if request.GET.activity_type %}&activity_type={{ request.GET.activity_type }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Last</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                                
+                                <!-- Show pagination info -->
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">
+                                        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+                                    </small>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No activities found</h5>
+                                <p class="text-muted">Try adjusting your filters or search criteria.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mb-0">Processing request...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .activity-card {
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+        .activity-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .activity-login { border-left-color: #28a745; }
+        .activity-logout { border-left-color: #dc3545; }
+        .activity-pod_start { border-left-color: #17a2b8; }
+        .activity-pod_stop { border-left-color: #ffc107; }
+        .activity-file_upload { border-left-color: #6f42c1; }
+        .activity-file_delete { border-left-color: #fd7e14; }
+        .activity-file_download { border-left-color: #20c997; }
+        .activity-account_created { border-left-color: #e83e8c; }
+        .activity-page_view { border-left-color: #6c757d; }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .activity-icon.login { background-color: #28a745; }
+        .activity-icon.logout { background-color: #dc3545; }
+        .activity-icon.pod_start { background-color: #17a2b8; }
+        .activity-icon.pod_stop { background-color: #ffc107; }
+        .activity-icon.file_upload { background-color: #6f42c1; }
+        .activity-icon.file_delete { background-color: #fd7e14; }
+        .activity-icon.file_download { background-color: #20c997; }
+        .activity-icon.account_created { background-color: #e83e8c; }
+        .activity-icon.page_view { background-color: #6c757d; }
+        
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .activity-details {
+            font-size: 0.85rem;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .export-options {
+            position: relative;
+        }
+        
+        .dropdown-menu {
+            min-width: 150px;
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function refreshData() {
+            // Show loading spinner
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+            
+            // Reload the page
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        }
+
+        function exportData() {
+            // This function is handled by the dropdown now
+            console.log('Export triggered');
+        }
+
+        // Auto-refresh functionality (optional)
+        let autoRefreshInterval;
+        
+        function startAutoRefresh(minutes = 5) {
+            autoRefreshInterval = setInterval(() => {
+                refreshData();
+            }, minutes * 60 * 1000);
+        }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        // Initialize tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+
+        // Handle form submissions with loading states
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function() {
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
+                    submitBtn.disabled = true;
+                }
+            });
+        });
+
+        // Handle export links with loading states
+        document.querySelectorAll('.dropdown-menu a').forEach(link => {
+            link.addEventListener('click', function() {
+                const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+                loadingModal.show();
+                
+                // Hide modal after a delay (export should trigger download)
+                setTimeout(() => {
+                    loadingModal.hide();
+                }, 3000);
+            });
+        });
+    </script>
+{% endblock %}
