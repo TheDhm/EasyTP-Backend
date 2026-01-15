@@ -27,5 +27,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --dev
 
+      - name: Verify installation
+        run: uv run python -c "import pytest; print('pytest installed')"
+
       - name: Run tests
         run: uv run pytest --cov --cov-report=term-missing -v
