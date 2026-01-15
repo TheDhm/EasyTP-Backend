@@ -107,3 +107,6 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"EasyTPCloud/settings/*.py" = ["F403", "F405"]
