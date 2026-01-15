@@ -115,11 +115,11 @@
 #         config.load_incluster_config()
 
 #     networking_api = client.NetworkingV1Api()
-    
+
 #     # Create unique subdomain for each user's app
 #     host = f"{user_hostname}-{app_name}.{domain}"
 #     service_name = f"{app_name}-service-{pod_name}"
-    
+
 #     manifest = {
 #         "apiVersion": "networking.k8s.io/v1",
 #         "kind": "Ingress",
@@ -193,7 +193,7 @@
 #         config.load_incluster_config()
 
 #     networking_api = client.NetworkingV1Api()
-    
+
 #     try:
 #         networking_api.delete_namespaced_ingress(
 #             name=f"{app_name}-ingress-{pod_name}",
@@ -202,7 +202,7 @@
 #     except ApiException as e:
 #         print("Exception when deleting ingress: %s\n" % e)
 
-       
+
 # # @autotask
 # def deploy_app(username, pod_name, app_name, image, vnc_password, user_hostname, readonly=False, *args, **kwargs):
 #     try:
@@ -355,15 +355,15 @@
 #                 vnc_password=hashlib.md5(pod.pod_vnc_password.encode("utf-8")).hexdigest(),
 #                 user_hostname=cleaned_username,
 #                 readonly=readonly_volume)
-        
+
 #         pod.is_deployed = True
 #         pod.save()
 
 #         # Create ClusterIP service
 #         create_service(pod_name=pod.pod_name, app_name=app_name.lower())
-        
+
 #         # Create Ingress for external access
-#         novnc_url = create_ingress(pod_name=pod.pod_name, 
+#         novnc_url = create_ingress(pod_name=pod.pod_name,
 #                                   app_name=app_name.lower(),
 #                                   user_hostname=cleaned_username)
 
@@ -372,7 +372,7 @@
 #         if hasattr(new_instance, 'novnc_url'):
 #             new_instance.novnc_url = f"https://{novnc_url}" if novnc_url else None
 #             new_instance.save()
-        
+
 #         print("Pod started successfully:", pod.pod_name)
 
 #         ActivityLogger.log_pod_start(user, app_name, pod.pod_name, request)
@@ -450,17 +450,16 @@
 #             instance.delete()
 #         except Instances.DoesNotExist as e:
 #             print("instance already deleted", e)
-        
+
 #         ActivityLogger.log_pod_stop(user, log_app_name, pod_name, request)
 
 #         return redirect(request.META.get('HTTP_REFERER', '/apps'))
 #     return redirect('main:landpage')
 
 
-
 # def display_apps(apps, user):
 #     """Updated display_apps function"""
-    
+
 #     print("Displaying apps for user:", user)
 #     print("Apps to display:", apps)
 
@@ -636,7 +635,7 @@
 # def login_request(request):
 #     if request.user.is_authenticated:
 #         return redirect("main:homepage")
-    
+
 #     if request.method == "POST":
 #         form = AuthenticationForm(request=request, data=request.POST)
 #         if form.is_valid():
@@ -660,11 +659,10 @@
 #     return render(request, "main/login.html", {"form": form})
 
 
-
 # def signup_request(request):
 #     if request.user.is_authenticated:
 #         return redirect("main:homepage")
-    
+
 #     if request.method == "POST":
 #         form = PublicUserCreationForm(request.POST)
 #         if form.is_valid():
@@ -689,7 +687,7 @@
 #             messages.error(request, "Erreur lors de la création du compte. Veuillez vérifier les informations saisies.")
 #     else:
 #         form = PublicUserCreationForm()
-    
+
 #     return render(request, "main/signup.html", {"form": form})
 
 
@@ -790,36 +788,36 @@
 #                 activity_type=UserActivity.ACCOUNT_CREATED,
 #                 request=request
 #             )
-    
+
 #     login(request, guest)
 
 #     ActivityLogger.log_login(guest, request)
 
-#     return redirect('main:homepage') 
+#     return redirect('main:homepage')
 
 
 # def sanitize_filename(filename):
 #     """Sanitize filename to prevent path traversal and other attacks"""
 #     if not filename:
 #         return "unnamed_file"
-    
+
 #     # Use only the basename to strip any path components
 #     clean_name = os.path.basename(filename)
-    
+
 #     # Remove or replace dangerous characters
 #     dangerous_chars = ['<', '>', ':', '"', '|', '?', '*', '\0']
 #     for char in dangerous_chars:
 #         clean_name = clean_name.replace(char, '_')
-    
+
 #     # Ensure filename isn't empty after cleaning
 #     if not clean_name or clean_name in ['.', '..']:
 #         clean_name = "unnamed_file"
-    
+
 #     # Limit filename length
 #     if len(clean_name) > 255:
 #         name, ext = os.path.splitext(clean_name)
 #         clean_name = name[:250] + ext
-    
+
 #     return clean_name
 
 
@@ -827,13 +825,13 @@
 #     """Safely decode base64 with proper padding and error handling"""
 #     if not encoded_path:
 #         return ""
-    
+
 #     try:
 #         # Add padding if necessary
 #         pad = len(encoded_path) % 4
 #         if pad:
 #             encoded_path += "=" * (4 - pad)
-        
+
 #         decoded = base64.urlsafe_b64decode(encoded_path).decode('utf-8')
 #         return decoded
 #     except (binascii.Error, UnicodeDecodeError, ValueError):
@@ -844,32 +842,32 @@
 #     """Comprehensive path validation and sanitization"""
 #     if not path:
 #         return ""
-    
+
 #     # Normalize the path
 #     path = os.path.normpath(path)
-    
+
 #     # Remove leading slash and strip whitespace
 #     path = path.lstrip('/').strip()
-    
+
 #     # Block dangerous path components
 #     path_parts = path.split('/')
 #     for part in path_parts:
 #         if part in ['.', '..', ''] or part.startswith('.'):
 #             raise SuspiciousOperation("Invalid path component")
-    
+
 #     # Construct full path and resolve symlinks
 #     if path:
 #         full_path = os.path.join(user_base_path, path)
 #     else:
 #         full_path = user_base_path
-    
+
 #     real_path = os.path.realpath(full_path)
 #     real_base = os.path.realpath(user_base_path)
-    
+
 #     # Ensure path is within allowed directory
 #     if not real_path.startswith(real_base + os.sep) and real_path != real_base:
 #         raise SuspiciousOperation("Path outside allowed directory")
-    
+
 #     return path
 
 
@@ -888,7 +886,7 @@
 #                     continue  # Skip files we can't access
 #     except (OSError, IOError):
 #         pass
-    
+
 #     return total_size / (1024 * 1024)  # Convert to MB
 
 # @never_cache
@@ -896,7 +894,7 @@
 # def file_explorer(request, path=None):
 #     if not request.user.is_authenticated:
 #         return redirect('main:landpage')
-    
+
 #     # Determine user path based on role
 #     if request.user.role != DefaultUser.STUDENT and request.user.role != DefaultUser.GUEST:
 #         user_path = '/READONLY/'
@@ -904,10 +902,10 @@
 #     else:
 #         user_path = f'/USERDATA/{request.user.username}/'
 #         is_readonly = False
-    
+
 #     # Ensure user directory exists
 #     os.makedirs(user_path, exist_ok=True)
-    
+
 #     try:
 #         # Decode and validate path
 #         if path:
@@ -915,10 +913,10 @@
 #             validated_path = validate_and_sanitize_path(decoded_path, user_path)
 #         else:
 #             validated_path = ""
-        
+
 #         # Set up navigation
 #         current_path = f'/{validated_path}' if validated_path else '/'
-        
+
 #         # Calculate parent path for navigation
 #         if validated_path:
 #             parent_parts = validated_path.split('/')[:-1]
@@ -926,30 +924,30 @@
 #             parent_path_encoded = base64.urlsafe_b64encode(parent_path.encode('utf-8')).decode() if parent_path else ""
 #         else:
 #             parent_path_encoded = ""
-        
+
 #     except SuspiciousOperation as e:
 #         messages.error(request, "Invalid path access attempt.")
 #         return redirect('main:file_explorer')
-    
+
 #     # Handle POST requests (upload/delete)
 #     if request.method == 'POST':
 #         action = request.POST.get('action')
-        
+
 #         # Handle file deletion (only for students)
 #         if action == 'delete' and not is_readonly:
 #             return handle_file_deletion(request, user_path, validated_path)
-        
+
 #         # Handle file upload
 #         elif not is_readonly:
 #             return handle_file_upload(request, user_path, validated_path)
-    
+
 #     # Get directory contents
 #     try:
 #         sub_files = get_sub_files_secure(user_path, validated_path)
 #     except (OSError, IOError):
 #         messages.error(request, "Unable to access directory.")
 #         sub_files = {}
-    
+
 #     # Calculate storage usage for students
 #     storage_percentage = 0
 #     actual_usage = 0
@@ -959,9 +957,9 @@
 #         request.user.size_uploaded = actual_usage
 #         request.user.save()
 #         storage_percentage = min(100, (actual_usage / request.user.upload_limit) * 100)
-    
+
 #     form = UploadFileForm()
-    
+
 #     return render(request, 'main/file_explorer.html', {
 #         'authenticated': True,
 #         'data': sub_files,
@@ -980,44 +978,44 @@
 #     if not file_path_encoded:
 #         messages.error(request, "No file specified for deletion.")
 #         return redirect_to_current_path(current_path)
-    
+
 #     try:
 #         # Decode and validate file path
 #         file_path_decoded = safe_base64_decode(file_path_encoded)
 #         file_path_validated = validate_and_sanitize_path(file_path_decoded, user_path)
-        
+
 #         if not file_path_validated:
 #             messages.error(request, "Invalid file path.")
 #             return redirect_to_current_path(current_path)
-        
+
 #         full_file_path = os.path.join(user_path, file_path_validated)
-        
+
 #         # Security checks
 #         if not os.path.exists(full_file_path):
 #             messages.error(request, "File not found.")
 #             return redirect_to_current_path(current_path)
-        
+
 #         if not os.path.isfile(full_file_path) or os.path.islink(full_file_path):
 #             messages.error(request, "Can only delete regular files.")
 #             return redirect_to_current_path(current_path)
-        
+
 #         # Get file size before deletion
 #         try:
 #             file_size_bytes = os.path.getsize(full_file_path)
 #             file_size_mb = file_size_bytes / (1024 * 1024)
 #         except OSError:
 #             file_size_mb = 0
-        
+
 #         # Delete the file
 #         os.remove(full_file_path)
-        
+
 #         # Update user's uploaded size
 #         request.user.size_uploaded = max(0, request.user.size_uploaded - file_size_mb)
 #         request.user.save()
-        
+
 #         filename = os.path.basename(file_path_validated)
 #         messages.success(request, f"File '{escape(filename)}' deleted successfully. {file_size_mb:.2f}MB freed.")
-        
+
 #         ActivityLogger.log_file_activity(
 #         user=request.user,
 #         activity_type=UserActivity.FILE_DELETE,
@@ -1028,42 +1026,42 @@
 
 #     except (SuspiciousOperation, OSError, IOError) as e:
 #         messages.error(request, "Error deleting file.")
-    
+
 #     return redirect_to_current_path(current_path)
 
 
 # def handle_file_upload(request, user_path, current_path):
 #     """Handle secure file upload"""
 #     form = UploadFileForm(request.POST, request.FILES)
-    
+
 #     if not form.is_valid():
 #         messages.error(request, "Please select a valid file.")
 #         return redirect_to_current_path(current_path)
-    
+
 #     uploaded_file = request.FILES['file']
 #     file_size_bytes = uploaded_file.size
 #     file_size_mb = file_size_bytes / (1024 * 1024)
-    
+
 #     # File size validation (10MB limit)
 #     if file_size_bytes > 10 * 1024 * 1024:
 #         messages.error(request, "File size must not exceed 10MB.")
 #         return redirect_to_current_path(current_path)
-    
+
 #     # User storage limit check
 #     current_usage = get_actual_storage_usage(user_path)
 #     if file_size_mb + current_usage > request.user.upload_limit:
 #         available = request.user.upload_limit - current_usage
 #         messages.error(request, f"Upload would exceed storage limit. Available: {available:.2f}MB")
 #         return redirect_to_current_path(current_path)
-    
+
 #     # Sanitize filename
 #     clean_filename = sanitize_filename(uploaded_file.name)
-    
+
 #     try:
 #         # Construct safe save path
 #         save_dir = os.path.join(user_path, current_path) if current_path else user_path
 #         save_path = os.path.join(save_dir, clean_filename)
-        
+
 #         # Ensure we're not overwriting existing files
 #         counter = 1
 #         original_name, ext = os.path.splitext(clean_filename)
@@ -1071,16 +1069,16 @@
 #             clean_filename = f"{original_name}_{counter}{ext}"
 #             save_path = os.path.join(save_dir, clean_filename)
 #             counter += 1
-        
+
 #         # Save file securely
 #         save_file_secure(save_path, uploaded_file)
-        
+
 #         # Update user's uploaded size
 #         request.user.size_uploaded = current_usage + file_size_mb
 #         request.user.save()
-        
+
 #         messages.success(request, f"File '{escape(clean_filename)}' uploaded successfully. {file_size_mb:.2f}MB used.")
-        
+
 #         ActivityLogger.log_file_activity(
 #         user=request.user,
 #         activity_type=UserActivity.FILE_UPLOAD,
@@ -1091,7 +1089,7 @@
 
 #     except (IOError, OSError) as e:
 #         messages.error(request, "Error saving file.")
-    
+
 #     return redirect_to_current_path(current_path)
 
 
@@ -1108,32 +1106,32 @@
 # def download_file(request, path):
 #     if not request.user.is_authenticated:
 #         raise Http404("Not authenticated")
-    
+
 #     try:
 #         # Decode and validate path
 #         decoded_path = safe_base64_decode(path)
-        
+
 #         # Determine user path
 #         if request.user.role == DefaultUser.STUDENT or request.user.role == DefaultUser.GUEST:
 #             user_path = f'/USERDATA/{request.user.username}/'
 #         else:
 #             user_path = '/READONLY/'
-        
+
 #         # Validate path
 #         validated_path = validate_and_sanitize_path(decoded_path, user_path)
-        
+
 #         if not validated_path:
 #             raise Http404("Invalid file path")
-        
+
 #         full_path = os.path.join(user_path, validated_path)
-        
+
 #         # Security checks
 #         if not os.path.exists(full_path) or not os.path.isfile(full_path) or os.path.islink(full_path):
 #             raise Http404("File not found")
-        
+
 #         # Get clean filename for download
 #         filename = sanitize_filename(os.path.basename(validated_path))
-        
+
 #         # Use FileResponse for secure download
 #         try:
 #             response = FileResponse(
@@ -1150,7 +1148,7 @@
 #             return response
 #         except IOError:
 #             raise Http404("Cannot access file")
-        
+
 #     except (SuspiciousOperation, UnicodeDecodeError, binascii.Error):
 #         raise Http404("Invalid request")
 
@@ -1158,28 +1156,28 @@
 # def get_sub_files_secure(user_path, path):
 #     """Securely get directory contents with size information"""
 #     sub_files = {}
-    
+
 #     try:
 #         full_path = os.path.join(user_path, path) if path else user_path
-        
+
 #         if not os.path.exists(full_path) or not os.path.isdir(full_path):
 #             return sub_files
-        
+
 #         for item in os.listdir(full_path):
 #             # Skip hidden files and dangerous names
 #             if item.startswith('.') or item in ['..', '.']:
 #                 continue
-            
+
 #             item_path = os.path.join(full_path, item)
-            
+
 #             # Skip symlinks for security
 #             if os.path.islink(item_path):
 #                 continue
-            
+
 #             try:
 #                 relative_path = os.path.join(path, item) if path else item
 #                 encoded_path = base64.urlsafe_b64encode(relative_path.encode('utf-8')).decode()
-                
+
 #                 if os.path.isdir(item_path):
 #                     sub_files[item] = {
 #                         'path': encoded_path,
@@ -1202,10 +1200,10 @@
 #             except (UnicodeEncodeError, OSError):
 #                 # Skip problematic files
 #                 continue
-                
+
 #     except (OSError, IOError):
 #         pass  # Return empty dict if directory can't be accessed
-    
+
 #     return sub_files
 
 
@@ -1214,12 +1212,12 @@
 #     # Ensure directory exists
 #     directory = os.path.dirname(file_path)
 #     os.makedirs(directory, exist_ok=True)
-    
+
 #     # Write file in chunks to handle large files efficiently and securely
 #     with open(file_path, 'wb') as destination:
 #         for chunk in uploaded_file.chunks():
 #             destination.write(chunk)
-    
+
 #     # Set restrictive permissions (owner read/write only)
 #     os.chmod(file_path, 0o600)
 
@@ -1241,15 +1239,15 @@
 #     apps_instance = client.AppsV1Api()
 
 #     # Delete ingress
-#     delete_ingress(pod_name, app_name) 
+#     delete_ingress(pod_name, app_name)
 #     # Delete service
-#     try:    
+#     try:
 #         deleted_service = api_instance.delete_namespaced_service(
 #             namespace="apps",
 #             name=app_name + "-service-" + pod_name
 #         )
 #     except ApiException as a:
-#         print("delete service exception", a)        
+#         print("delete service exception", a)
 #     # Delete deployment
 #     try:
 #         deleted_deployment = apps_instance.delete_namespaced_deployment(
@@ -1268,8 +1266,8 @@
 #         pod.save()
 
 #     except (Pod.DoesNotExist, Instances.DoesNotExist) as e:
-#         print("instance already deleted", e)   
-    
+#         print("instance already deleted", e)
+
 #     print(f"Pod {pod_name} for app {app_name} has been stopped.")
 
 
@@ -1290,7 +1288,7 @@
 #             user = request.user
 #             apps = user.group.apps.all()
 #             data = display_apps(apps, user)
-        
+
 #         return JsonResponse(data)
 #     return JsonResponse({})
 
@@ -1300,29 +1298,29 @@
 #     """View for admins to see user activities"""
 #     if not request.user.is_authenticated or not request.user.is_superuser:
 #         raise Http404("Page not found")
-    
+
 #     if not request.user.is_authenticated or request.user.role not in [DefaultUser.ADMIN]:
 #         return redirect('main:landpage')
-    
-    
+
+
 #     # Get filter parameters
 #     filter_form = ActivityFilterForm(request.GET)
 #     activities = UserActivity.objects.select_related('user').all()
-    
+
 #     # Apply filters
 #     if filter_form.is_valid():
 #         if filter_form.cleaned_data['user']:
 #             activities = activities.filter(user=filter_form.cleaned_data['user'])
-        
+
 #         if filter_form.cleaned_data['activity_type']:
 #             activities = activities.filter(activity_type=filter_form.cleaned_data['activity_type'])
-        
+
 #         if filter_form.cleaned_data['start_date']:
 #             activities = activities.filter(timestamp__gte=filter_form.cleaned_data['start_date'])
-        
+
 #         if filter_form.cleaned_data['end_date']:
 #             activities = activities.filter(timestamp__lte=filter_form.cleaned_data['end_date'])
-    
+
 #     # Search functionality
 #     search_query = request.GET.get('search', '')
 #     if search_query:
@@ -1331,12 +1329,12 @@
 #             Q(user__email__icontains=search_query) |
 #             Q(ip_address__icontains=search_query)
 #         )
-    
+
 #     # Pagination
 #     paginator = Paginator(activities, 50)  # Show 50 activities per page
 #     page_number = request.GET.get('page')
 #     page_obj = paginator.get_page(page_number)
-    
+
 #     # Activity statistics
 #     stats = {
 #         'total_activities': activities.count(),
@@ -1348,12 +1346,12 @@
 #         ).count(),
 #         'unique_users': activities.values('user').distinct().count(),
 #     }
-    
+
 #     context = {
 #         'page_obj': page_obj,
 #         'filter_form': filter_form,
 #         'search_query': search_query,
 #         'stats': stats,
 #     }
-    
+
 #     return render(request, 'main/user_activities.html', context)

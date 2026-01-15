@@ -1,4 +1,5 @@
 from rest_framework import permissions
+
 from main.models import DefaultUser
 
 
@@ -16,9 +17,9 @@ class IsOwnerOrAdmin(permissions.BasePermission):
             return True
 
         # Object owners have access
-        if hasattr(obj, 'user'):
+        if hasattr(obj, "user"):
             return obj.user == request.user
-        if hasattr(obj, 'pod_user'):
+        if hasattr(obj, "pod_user"):
             return obj.pod_user == request.user
 
         return False
@@ -30,11 +31,9 @@ class IsTeacherOrAdmin(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and (
-                request.user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or
-                request.user.is_superuser
-            )
+        return request.user.is_authenticated and (
+            request.user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN]
+            or request.user.is_superuser
         )
 
 
@@ -44,11 +43,8 @@ class IsAdminUser(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and (
-                request.user.role == DefaultUser.ADMIN or
-                request.user.is_superuser
-            )
+        return request.user.is_authenticated and (
+            request.user.role == DefaultUser.ADMIN or request.user.is_superuser
         )
 
 
@@ -59,12 +55,9 @@ class IsStudentOrAbove(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return (
-            request.user.is_authenticated and
-            request.user.role in [
-                DefaultUser.STUDENT,
-                DefaultUser.TEACHER,
-                DefaultUser.ADMIN
-            ] or request.user.is_superuser
+            request.user.is_authenticated
+            and request.user.role in [DefaultUser.STUDENT, DefaultUser.TEACHER, DefaultUser.ADMIN]
+            or request.user.is_superuser
         )
 
 
@@ -78,12 +71,14 @@ class CanAccessApp(permissions.BasePermission):
             return False
 
         # Admin and teacher have access to all apps
-        if (request.user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or
-            request.user.is_superuser):
+        if (
+            request.user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN]
+            or request.user.is_superuser
+        ):
             return True
 
         # Check if user's group has access to the app
-        app_name = view.kwargs.get('app_name')
+        app_name = view.kwargs.get("app_name")
         if app_name and request.user.group:
             return request.user.group.apps.filter(name=app_name).exists()
 
@@ -105,7 +100,7 @@ class RoleBasedPermission(permissions.BasePermission):
             return True
 
         # Check if view has defined allowed_roles
-        allowed_roles = getattr(view, 'allowed_roles', [])
+        allowed_roles = getattr(view, "allowed_roles", [])
         if not allowed_roles:
             return True  # No restrictions if no roles specified
 

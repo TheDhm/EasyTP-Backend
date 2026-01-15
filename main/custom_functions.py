@@ -8,4 +8,3 @@ def autotask(func):
         t.start()
 
     return decor
-

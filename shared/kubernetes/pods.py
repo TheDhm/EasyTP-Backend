@@ -1,14 +1,16 @@
 """Kubernetes pod management operations."""
-import uuid
+
 import hashlib
+import uuid
 from time import sleep
 
 from kubernetes import client
 from kubernetes.client.rest import ApiException
 
+from shared.utils.threading import autotask
+
 from .config import load_k8s_config
 from .deployments import delete_ingress
-from shared.utils.threading import autotask
 
 
 @autotask
@@ -23,7 +25,7 @@ def generate_pod_if_not_exist(pod_user, app_name, pod_name, pod_vnc_user, pod_vn
         app_name=app_name,
         pod_vnc_user=pod_vnc_user,
         pod_vnc_password=pod_vnc_password,
-        pod_namespace="apps"
+        pod_namespace="apps",
     )
     pod.save()
 
@@ -39,7 +41,7 @@ def display_apps(apps, user):
         dict: App name -> {vnc_pass, deployment_status, novnc_url, is_deployed}
     """
     # Import here to avoid circular imports
-    from main.models import Pod, Instances
+    from main.models import Instances, Pod
 
     print("Displaying apps for user:", user)
     print("Apps to display:", apps)
@@ -60,7 +62,7 @@ def display_apps(apps, user):
         else:
             # Create pod if not exist
             pod_name = hashlib.md5(
-                f'{app.name}:{user.username}:{user.id}'.encode("utf-8")
+                f"{app.name}:{user.username}:{user.id}".encode("utf-8")
             ).hexdigest()
             pod_vnc_user = uuid.uuid4().hex[:6]
             pod_vnc_password = uuid.uuid4().hex
@@ -69,7 +71,7 @@ def display_apps(apps, user):
                 pod_name=pod_name,
                 app_name=app.name,
                 pod_vnc_user=pod_vnc_user,
-                pod_vnc_password=pod_vnc_password
+                pod_vnc_password=pod_vnc_password,
             )
             vnc_pass = pod_vnc_password
             # Retrieve the created pod
@@ -80,15 +82,13 @@ def display_apps(apps, user):
         try:
             load_k8s_config()
 
-            api_instance = client.CoreV1Api()
             apps_instance = client.AppsV1Api()
             networking_api = client.NetworkingV1Api()
 
             # Check if ingress exists and get URL
             try:
                 ingress = networking_api.list_namespaced_ingress(
-                    namespace="apps",
-                    label_selector=f"ingressApp={pod_name}"
+                    namespace="apps", label_selector=f"ingressApp={pod_name}"
                 )
                 if len(ingress.items) > 0:
                     host = ingress.items[0].spec.rules[0].host
@@ -98,8 +98,7 @@ def display_apps(apps, user):
 
             # Check deployment status
             deployment = apps_instance.list_namespaced_deployment(
-                namespace="apps",
-                label_selector=f"deploymentApp={pod_name}"
+                namespace="apps", label_selector=f"deploymentApp={pod_name}"
             )
 
             if len(deployment.items) != 0:
@@ -119,19 +118,19 @@ def display_apps(apps, user):
                 elif deployment_obj.status.conditions:
                     for condition in deployment_obj.status.conditions:
                         # If deployment is progressing and not failing, consider it starting
-                        if (condition.type == "Progressing" and
-                            condition.status == "True" and
-                            condition.reason == "NewReplicaSetAvailable"):
+                        if (
+                            condition.type == "Progressing"
+                            and condition.status == "True"
+                            and condition.reason == "NewReplicaSetAvailable"
+                        ):
                             status = True
                             break
                         # If deployment is available, it's definitely running
-                        elif (condition.type == "Available" and
-                              condition.status == "True"):
+                        elif condition.type == "Available" and condition.status == "True":
                             status = True
                             break
                         # If just progressing, also consider it as starting
-                        elif (condition.type == "Progressing" and
-                              condition.status == "True"):
+                        elif condition.type == "Progressing" and condition.status == "True":
                             status = True
                             break
 
@@ -140,7 +139,7 @@ def display_apps(apps, user):
             if e.status in [500, 502, 503, 504]:
                 # Keep previous status during API outages
                 pass
-        except Exception as e:
+        except Exception:
             # For other errors, default to stopped status
             pass
 
@@ -149,7 +148,7 @@ def display_apps(apps, user):
             # Check if pod was recently deployed
             try:
                 # Get the most recent instance creation time as proxy for deployment time
-                recent_instance = Instances.objects.filter(pod=pod).order_by('-id').first()
+                recent_instance = Instances.objects.filter(pod=pod).order_by("-id").first()
                 if recent_instance:
                     # If we can't get exact timestamp, use pod.is_deployed as fallback
                     status = True
@@ -165,7 +164,7 @@ def display_apps(apps, user):
             "vnc_pass": vnc_pass,
             "deployment_status": status,
             "novnc_url": novnc_url,
-            "is_deployed": pod.is_deployed
+            "is_deployed": pod.is_deployed,
         }
 
     return data
@@ -175,7 +174,7 @@ def display_apps(apps, user):
 def stop_deployed_pod(pod_id, pod_name, app_name):
     """Stop a deployed pod after a delay."""
     # Import here to avoid circular imports
-    from main.models import Pod, Instances
+    from main.models import Instances, Pod
 
     print("sleeping for 3 minutes before stopping the pod...")
     sleep(60 * 3)  # Delay before stopping the pod
@@ -191,18 +190,16 @@ def stop_deployed_pod(pod_id, pod_name, app_name):
 
     # Delete service
     try:
-        deleted_service = api_instance.delete_namespaced_service(
-            namespace="apps",
-            name=app_name + "-service-" + pod_name
+        _deleted_service = api_instance.delete_namespaced_service(
+            namespace="apps", name=app_name + "-service-" + pod_name
         )
     except ApiException as a:
         print("delete service exception", a)
 
     # Delete deployment
     try:
-        deleted_deployment = apps_instance.delete_namespaced_deployment(
-            namespace="apps",
-            name=app_name + "-deployment-" + pod_name
+        _deleted_deployment = apps_instance.delete_namespaced_deployment(
+            namespace="apps", name=app_name + "-deployment-" + pod_name
         )
     except ApiException as a:
         print("delete deployment exception", a)

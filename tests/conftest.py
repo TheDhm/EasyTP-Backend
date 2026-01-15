@@ -1,25 +1,34 @@
 """Shared test fixtures for pytest."""
-import pytest
-from unittest.mock import patch, MagicMock
-from django.test import Client
-from rest_framework.test import APIClient
+
+from unittest.mock import MagicMock, patch
 
 import factory
+import pytest
+from django.test import Client
 from factory.django import DjangoModelFactory
+from rest_framework.test import APIClient
 
 
 @pytest.fixture(autouse=True)
 def block_k8s_calls():
     """Block all real K8s API calls during tests. Autouse ensures this runs for every test."""
-    with patch('kubernetes.client.CoreV1Api') as mock_core, \
-         patch('kubernetes.client.AppsV1Api') as mock_apps, \
-         patch('kubernetes.client.NetworkingV1Api') as mock_net, \
-         patch('kubernetes.config.load_kube_config') as mock_kube_cfg, \
-         patch('kubernetes.config.load_incluster_config') as mock_cluster_cfg:
+    with (
+        patch("kubernetes.client.CoreV1Api") as mock_core,
+        patch("kubernetes.client.AppsV1Api") as mock_apps,
+        patch("kubernetes.client.NetworkingV1Api"),
+        patch("kubernetes.config.load_kube_config"),
+        patch("kubernetes.config.load_incluster_config"),
+    ):
         # Make the mocks raise if accidentally called without explicit mocking
-        mock_core.return_value.create_namespaced_service.side_effect = RuntimeError("K8s not mocked")
-        mock_apps.return_value.create_namespaced_deployment.side_effect = RuntimeError("K8s not mocked")
-        mock_apps.return_value.delete_namespaced_deployment.side_effect = RuntimeError("K8s not mocked")
+        mock_core.return_value.create_namespaced_service.side_effect = RuntimeError(
+            "K8s not mocked"
+        )
+        mock_apps.return_value.create_namespaced_deployment.side_effect = RuntimeError(
+            "K8s not mocked"
+        )
+        mock_apps.return_value.delete_namespaced_deployment.side_effect = RuntimeError(
+            "K8s not mocked"
+        )
         yield
 
 
@@ -38,7 +47,7 @@ def django_client():
 @pytest.fixture
 def mock_k8s_config():
     """Mock Kubernetes configuration loading."""
-    with patch('shared.kubernetes.config.config') as mock_config:
+    with patch("shared.kubernetes.config.config") as mock_config:
         mock_config.load_kube_config = MagicMock()
         mock_config.load_incluster_config = MagicMock()
         yield mock_config
@@ -47,7 +56,7 @@ def mock_k8s_config():
 @pytest.fixture
 def mock_k8s_client():
     """Mock Kubernetes client APIs."""
-    with patch('kubernetes.client') as mock_client:
+    with patch("kubernetes.client") as mock_client:
         # Mock CoreV1Api
         mock_core_api = MagicMock()
         mock_client.CoreV1Api.return_value = mock_core_api
@@ -61,10 +70,10 @@ def mock_k8s_client():
         mock_client.NetworkingV1Api.return_value = mock_networking_api
 
         yield {
-            'client': mock_client,
-            'core_api': mock_core_api,
-            'apps_api': mock_apps_api,
-            'networking_api': mock_networking_api,
+            "client": mock_client,
+            "core_api": mock_core_api,
+            "apps_api": mock_apps_api,
+            "networking_api": mock_networking_api,
         }
 
 
@@ -77,8 +86,9 @@ def access_group_factory():
     class AccessGroupFactory(DjangoModelFactory):
         class Meta:
             model = AccessGroup
-            django_get_or_create = ('name',)
-        name = factory.Sequence(lambda n: f'group_{n}')
+            django_get_or_create = ("name",)
+
+        name = factory.Sequence(lambda n: f"group_{n}")
 
     return AccessGroupFactory
 
@@ -86,24 +96,25 @@ def access_group_factory():
 @pytest.fixture
 def user_factory():
     """Factory for creating users."""
-    from main.models import DefaultUser, AccessGroup
+    from main.models import AccessGroup, DefaultUser
 
     class UserFactory(DjangoModelFactory):
         class Meta:
             model = DefaultUser
-            django_get_or_create = ('username',)
-        username = factory.Sequence(lambda n: f'user_{n}')
-        email = factory.LazyAttribute(lambda obj: f'{obj.username}@example.com')
+            django_get_or_create = ("username",)
+
+        username = factory.Sequence(lambda n: f"user_{n}")
+        email = factory.LazyAttribute(lambda obj: f"{obj.username}@example.com")
         is_active = True
 
         @factory.lazy_attribute
         def group(self):
-            group, _ = AccessGroup.objects.get_or_create(name='TestGroup')
+            group, _ = AccessGroup.objects.get_or_create(name="TestGroup")
             return group
 
         @classmethod
         def _create(cls, model_class, *args, **kwargs):
-            password = kwargs.pop('password', 'testpass123')
+            password = kwargs.pop("password", "testpass123")
             obj = super()._create(model_class, *args, **kwargs)
             obj.set_password(password)
             obj.save()
@@ -117,19 +128,21 @@ def user_factory():
 def access_group(db):
     """Create a test access group."""
     from main.models import AccessGroup
-    group, _ = AccessGroup.objects.get_or_create(name='TestGroup')
+
+    group, _ = AccessGroup.objects.get_or_create(name="TestGroup")
     return group
 
 
 @pytest.fixture
 def student_user(db):
     """Create a student user."""
-    from main.models import DefaultUser, AccessGroup
+    from main.models import AccessGroup, DefaultUser
+
     group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.CP1)
     user = DefaultUser.objects.create_user(
-        username='test_student',
-        email='student@example.com',
-        password='testpass123',
+        username="test_student",
+        email="student@example.com",
+        password="testpass123",
         group=group,
         role=DefaultUser.STUDENT,
     )
@@ -139,12 +152,13 @@ def student_user(db):
 @pytest.fixture
 def teacher_user(db):
     """Create a teacher user."""
-    from main.models import DefaultUser, AccessGroup
+    from main.models import AccessGroup, DefaultUser
+
     group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.FULL)
     user = DefaultUser.objects.create_user(
-        username='test_teacher',
-        email='teacher@example.com',
-        password='testpass123',
+        username="test_teacher",
+        email="teacher@example.com",
+        password="testpass123",
         group=group,
         role=DefaultUser.TEACHER,
     )
@@ -154,12 +168,13 @@ def teacher_user(db):
 @pytest.fixture
 def admin_user(db):
     """Create an admin user."""
-    from main.models import DefaultUser, AccessGroup
+    from main.models import AccessGroup, DefaultUser
+
     group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.FULL)
     user = DefaultUser.objects.create_user(
-        username='test_admin',
-        email='admin@example.com',
-        password='testpass123',
+        username="test_admin",
+        email="admin@example.com",
+        password="testpass123",
         group=group,
         role=DefaultUser.ADMIN,
         is_superuser=True,
@@ -170,12 +185,13 @@ def admin_user(db):
 @pytest.fixture
 def guest_user(db):
     """Create a guest user."""
-    from main.models import DefaultUser, AccessGroup
+    from main.models import AccessGroup, DefaultUser
+
     group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
     user = DefaultUser.objects.create_user(
-        username='test_guest',
-        email='guest@example.com',
-        password='testpass123',
+        username="test_guest",
+        email="guest@example.com",
+        password="testpass123",
         group=group,
         role=DefaultUser.GUEST,
     )
@@ -186,12 +202,13 @@ def guest_user(db):
 def test_app(db):
     """Create a test app."""
     from main.models import App
+
     app, _ = App.objects.get_or_create(
-        name='testapp',
+        name="testapp",
         defaults={
-            'image': 'test-image:latest',
-            'description': 'Test application',
-        }
+            "image": "test-image:latest",
+            "description": "Test application",
+        },
     )
     return app
 
@@ -200,13 +217,14 @@ def test_app(db):
 def test_pod(db, student_user, test_app):
     """Create a test pod."""
     from main.models import Pod
+
     pod = Pod.objects.create(
         pod_user=student_user,
-        pod_name='test-pod-hash',
+        pod_name="test-pod-hash",
         app_name=test_app.name,
-        pod_vnc_user='vncuser',
-        pod_vnc_password='vncpass',
-        pod_namespace='apps',
+        pod_vnc_user="vncuser",
+        pod_vnc_password="vncpass",
+        pod_namespace="apps",
     )
     return pod
 
@@ -235,6 +253,6 @@ def admin_api_client(api_client, admin_user):
 @pytest.fixture
 def temp_user_dir(tmp_path, student_user):
     """Create a temporary user directory for file operations."""
-    user_dir = tmp_path / 'USERDATA' / student_user.username
+    user_dir = tmp_path / "USERDATA" / student_user.username
     user_dir.mkdir(parents=True)
     return user_dir

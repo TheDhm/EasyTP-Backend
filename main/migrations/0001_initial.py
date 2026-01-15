@@ -5,118 +5,346 @@ import django.contrib.auth.validators
 import django.core.validators
 import django.db.models.deletion
 import django.utils.timezone
-import main.custom_validators
 from django.conf import settings
 from django.db import migrations, models
 
+import main.custom_validators
+
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
+        ("auth", "0012_alter_user_first_name_max_length"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AccessGroup',
+            name="AccessGroup",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(default='Cycle Préparatoire 1', max_length=25, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(default="Cycle Préparatoire 1", max_length=25, unique=True),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='DefaultUser',
+            name="DefaultUser",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them.', verbose_name='superuser status')),
-                ('username', models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=150, unique=True, validators=[django.contrib.auth.validators.UnicodeUsernameValidator()], verbose_name='username')),
-                ('first_name', models.CharField(blank=True, max_length=150, verbose_name='first name')),
-                ('last_name', models.CharField(blank=True, max_length=150, verbose_name='last name')),
-                ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into this admin site.', verbose_name='staff status')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='active')),
-                ('date_joined', models.DateTimeField(default=django.utils.timezone.now, verbose_name='date joined')),
-                ('email', models.EmailField(help_text='Enter the email of user', max_length=50, unique=True, verbose_name='email address')),
-                ('role', models.CharField(choices=[('T', 'Teacher'), ('S', 'Student'), ('A', 'Staff'), ('G', 'Guest')], default='S', max_length=1)),
-                ('upload_limit', models.IntegerField(default=50, help_text='Upload limit in MB for the user')),
-                ('size_uploaded', models.IntegerField(default=0, help_text='Total size uploaded by the user in MB')),
-                ('groups', models.ManyToManyField(blank=True, help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.', related_name='user_set', related_query_name='user', to='auth.group', verbose_name='groups')),
-                ('user_permissions', models.ManyToManyField(blank=True, help_text='Specific permissions for this user.', related_name='user_set', related_query_name='user', to='auth.permission', verbose_name='user permissions')),
-                ('group', models.ForeignKey(default=None, null=True, on_delete=django.db.models.deletion.SET_DEFAULT, related_name='students', to='main.accessgroup')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(blank=True, null=True, verbose_name="last login"),
+                ),
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them.",
+                        verbose_name="superuser status",
+                    ),
+                ),
+                (
+                    "username",
+                    models.CharField(
+                        error_messages={"unique": "A user with that username already exists."},
+                        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.",
+                        max_length=150,
+                        unique=True,
+                        validators=[django.contrib.auth.validators.UnicodeUsernameValidator()],
+                        verbose_name="username",
+                    ),
+                ),
+                (
+                    "first_name",
+                    models.CharField(blank=True, max_length=150, verbose_name="first name"),
+                ),
+                (
+                    "last_name",
+                    models.CharField(blank=True, max_length=150, verbose_name="last name"),
+                ),
+                (
+                    "is_staff",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates whether the user can log into this admin site.",
+                        verbose_name="staff status",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+                        verbose_name="active",
+                    ),
+                ),
+                (
+                    "date_joined",
+                    models.DateTimeField(
+                        default=django.utils.timezone.now, verbose_name="date joined"
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        help_text="Enter the email of user",
+                        max_length=50,
+                        unique=True,
+                        verbose_name="email address",
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("T", "Teacher"),
+                            ("S", "Student"),
+                            ("A", "Staff"),
+                            ("G", "Guest"),
+                        ],
+                        default="S",
+                        max_length=1,
+                    ),
+                ),
+                (
+                    "upload_limit",
+                    models.IntegerField(default=50, help_text="Upload limit in MB for the user"),
+                ),
+                (
+                    "size_uploaded",
+                    models.IntegerField(
+                        default=0, help_text="Total size uploaded by the user in MB"
+                    ),
+                ),
+                (
+                    "groups",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="The groups this user belongs to. A user will get all permissions granted to each of their groups.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.group",
+                        verbose_name="groups",
+                    ),
+                ),
+                (
+                    "user_permissions",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="Specific permissions for this user.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.permission",
+                        verbose_name="user permissions",
+                    ),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_DEFAULT,
+                        related_name="students",
+                        to="main.accessgroup",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'user',
-                'verbose_name_plural': 'users',
-                'abstract': False,
+                "verbose_name": "user",
+                "verbose_name_plural": "users",
+                "abstract": False,
             },
             managers=[
-                ('objects', django.contrib.auth.models.UserManager()),
+                ("objects", django.contrib.auth.models.UserManager()),
             ],
         ),
         migrations.CreateModel(
-            name='App',
+            name="App",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50, unique=True)),
-                ('image', models.CharField(max_length=30)),
-                ('group', models.ManyToManyField(blank=True, related_name='apps', to='main.accessgroup')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(max_length=50, unique=True)),
+                ("image", models.CharField(max_length=30)),
+                (
+                    "group",
+                    models.ManyToManyField(blank=True, related_name="apps", to="main.accessgroup"),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Pod',
+            name="Pod",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('app_name', models.CharField(default=None, max_length=200, null=True)),
-                ('pod_name', models.CharField(default=None, max_length=200, null=True)),
-                ('pod_vnc_user', models.CharField(default=None, max_length=200, null=True)),
-                ('pod_vnc_password', models.CharField(default=None, max_length=200, null=True)),
-                ('date_created', models.DateTimeField(auto_now_add=True)),
-                ('date_modified', models.DateTimeField(auto_now=True)),
-                ('pod_namespace', models.CharField(default=None, max_length=200, null=True)),
-                ('is_deployed', models.BooleanField(default=False, help_text='Is the pod deployed?')),
-                ('pod_user', models.ForeignKey(default=None, on_delete=django.db.models.deletion.CASCADE, related_name='pod_user', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("app_name", models.CharField(default=None, max_length=200, null=True)),
+                ("pod_name", models.CharField(default=None, max_length=200, null=True)),
+                ("pod_vnc_user", models.CharField(default=None, max_length=200, null=True)),
+                ("pod_vnc_password", models.CharField(default=None, max_length=200, null=True)),
+                ("date_created", models.DateTimeField(auto_now_add=True)),
+                ("date_modified", models.DateTimeField(auto_now=True)),
+                ("pod_namespace", models.CharField(default=None, max_length=200, null=True)),
+                (
+                    "is_deployed",
+                    models.BooleanField(default=False, help_text="Is the pod deployed?"),
+                ),
+                (
+                    "pod_user",
+                    models.ForeignKey(
+                        default=None,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="pod_user",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Instances',
+            name="Instances",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('instance_name', models.CharField(default=None, max_length=200, null=True)),
-                ('date_created', models.DateTimeField(auto_now_add=True)),
-                ('date_modified', models.DateTimeField(auto_now=True)),
-                ('novnc_url', models.URLField(blank=True, null=True)),
-                ('pod', models.OneToOneField(default=None, on_delete=django.db.models.deletion.CASCADE, related_name='instance', to='main.pod')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("instance_name", models.CharField(default=None, max_length=200, null=True)),
+                ("date_created", models.DateTimeField(auto_now_add=True)),
+                ("date_modified", models.DateTimeField(auto_now=True)),
+                ("novnc_url", models.URLField(blank=True, null=True)),
+                (
+                    "pod",
+                    models.OneToOneField(
+                        default=None,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="instance",
+                        to="main.pod",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='UsersFromCSV',
+            name="UsersFromCSV",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file', models.FileField(default='', upload_to='', validators=[django.core.validators.FileExtensionValidator(['csv', 'xlsx']), main.custom_validators.validate_emails_in_file])),
-                ('role', models.CharField(choices=[('T', 'Teacher'), ('S', 'Student'), ('A', 'Staff'), ('G', 'Guest')], default='S', max_length=1)),
-                ('group', models.ForeignKey(default=None, on_delete=django.db.models.deletion.SET_DEFAULT, to='main.accessgroup')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "file",
+                    models.FileField(
+                        default="",
+                        upload_to="",
+                        validators=[
+                            django.core.validators.FileExtensionValidator(["csv", "xlsx"]),
+                            main.custom_validators.validate_emails_in_file,
+                        ],
+                    ),
+                ),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("T", "Teacher"),
+                            ("S", "Student"),
+                            ("A", "Staff"),
+                            ("G", "Guest"),
+                        ],
+                        default="S",
+                        max_length=1,
+                    ),
+                ),
+                (
+                    "group",
+                    models.ForeignKey(
+                        default=None,
+                        on_delete=django.db.models.deletion.SET_DEFAULT,
+                        to="main.accessgroup",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='UserActivity',
+            name="UserActivity",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('username', models.CharField(blank=True, max_length=150)),
-                ('activity_type', models.CharField(choices=[('login', 'Login'), ('logout', 'Logout'), ('pod_start', 'Pod Started'), ('pod_stop', 'Pod Stopped'), ('file_upload', 'File Uploaded'), ('file_delete', 'File Deleted'), ('file_download', 'File Downloaded'), ('account_created', 'Account Created'), ('page_view', 'Page View')], max_length=20)),
-                ('timestamp', models.DateTimeField(auto_now_add=True)),
-                ('ip_address', models.GenericIPAddressField(blank=True, null=True)),
-                ('user_agent', models.TextField(blank=True, null=True)),
-                ('details', models.JSONField(blank=True, default=dict)),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='activities', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("username", models.CharField(blank=True, max_length=150)),
+                (
+                    "activity_type",
+                    models.CharField(
+                        choices=[
+                            ("login", "Login"),
+                            ("logout", "Logout"),
+                            ("pod_start", "Pod Started"),
+                            ("pod_stop", "Pod Stopped"),
+                            ("file_upload", "File Uploaded"),
+                            ("file_delete", "File Deleted"),
+                            ("file_download", "File Downloaded"),
+                            ("account_created", "Account Created"),
+                            ("page_view", "Page View"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("timestamp", models.DateTimeField(auto_now_add=True)),
+                ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
+                ("user_agent", models.TextField(blank=True, null=True)),
+                ("details", models.JSONField(blank=True, default=dict)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="activities",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'User Activity',
-                'verbose_name_plural': 'User Activities',
-                'ordering': ['-timestamp'],
-                'indexes': [models.Index(fields=['-timestamp'], name='main_userac_timesta_d0d204_idx'), models.Index(fields=['user', '-timestamp'], name='main_userac_user_id_1810e6_idx'), models.Index(fields=['username', '-timestamp'], name='main_userac_usernam_6c47d6_idx'), models.Index(fields=['activity_type', '-timestamp'], name='main_userac_activit_bcd665_idx')],
+                "verbose_name": "User Activity",
+                "verbose_name_plural": "User Activities",
+                "ordering": ["-timestamp"],
+                "indexes": [
+                    models.Index(fields=["-timestamp"], name="main_userac_timesta_d0d204_idx"),
+                    models.Index(
+                        fields=["user", "-timestamp"], name="main_userac_user_id_1810e6_idx"
+                    ),
+                    models.Index(
+                        fields=["username", "-timestamp"], name="main_userac_usernam_6c47d6_idx"
+                    ),
+                    models.Index(
+                        fields=["activity_type", "-timestamp"],
+                        name="main_userac_activit_bcd665_idx",
+                    ),
+                ],
             },
         ),
     ]

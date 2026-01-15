@@ -1,4 +1,4 @@
 # Utility functions
 from .threading import autotask
 
-__all__ = ['autotask']
+__all__ = ["autotask"]

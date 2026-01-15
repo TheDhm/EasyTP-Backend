@@ -1,7 +1,9 @@
 """File path validation and sanitization utilities."""
-import os
+
 import base64
 import binascii
+import os
+
 from django.core.exceptions import SuspiciousOperation
 
 
@@ -14,12 +16,12 @@ def sanitize_filename(filename):
     clean_name = os.path.basename(filename)
 
     # Remove or replace dangerous characters
-    dangerous_chars = ['<', '>', ':', '"', '|', '?', '*', '\0']
+    dangerous_chars = ["<", ">", ":", '"', "|", "?", "*", "\0"]
     for char in dangerous_chars:
-        clean_name = clean_name.replace(char, '_')
+        clean_name = clean_name.replace(char, "_")
 
     # Ensure filename isn't empty after cleaning
-    if not clean_name or clean_name in ['.', '..']:
+    if not clean_name or clean_name in [".", ".."]:
         clean_name = "unnamed_file"
 
     # Limit filename length
@@ -41,7 +43,7 @@ def safe_base64_decode(encoded_path):
         if pad:
             encoded_path += "=" * (4 - pad)
 
-        decoded = base64.urlsafe_b64decode(encoded_path).decode('utf-8')
+        decoded = base64.urlsafe_b64decode(encoded_path).decode("utf-8")
         return decoded
     except (binascii.Error, UnicodeDecodeError, ValueError):
         raise SuspiciousOperation("Invalid path encoding")
@@ -56,12 +58,12 @@ def validate_and_sanitize_path(path, user_base_path):
     path = os.path.normpath(path)
 
     # Remove leading slash and strip whitespace
-    path = path.lstrip('/').strip()
+    path = path.lstrip("/").strip()
 
     # Block dangerous path components
-    path_parts = path.split('/')
+    path_parts = path.split("/")
     for part in path_parts:
-        if part in ['.', '..', ''] or part.startswith('.'):
+        if part in [".", "..", ""] or part.startswith("."):
             raise SuspiciousOperation("Invalid path component")
 
     # Construct full path and resolve symlinks

@@ -1,4 +1,5 @@
 import csv
+
 import openpyxl
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
@@ -8,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 
 @deconstructible
 class EsiEmailValidator(EmailValidator):
-
     def validate_domain_part(self, domain_part):
         return False
 
@@ -17,14 +17,15 @@ class EsiEmailValidator(EmailValidator):
 
 
 def validate_emails_in_file(file):
-    email_validator = EsiEmailValidator(allowlist=['esi.dz'],
-                                        message='Enter a valid "@esi.dz" email address.')
+    email_validator = EsiEmailValidator(
+        allowlist=["esi.dz"], message='Enter a valid "@esi.dz" email address.'
+    )
 
     invalid_emails = []
     emails = []
-    if str(file).endswith('.csv'):
+    if str(file).endswith(".csv"):
         data = csv.reader(file)
-        header = next(data)
+        next(data)  # Skip header row
 
         for row in data:
             emails.append(row[0])
@@ -49,15 +50,16 @@ def validate_emails_in_file(file):
     file.seek(0)
 
     if invalid_emails:
-        raise ValidationError([
-            ValidationError(_('Invalid email: %(email)s'),
-                            params={'email': email})
-            for email in invalid_emails
-        ])
+        raise ValidationError(
+            [
+                ValidationError(_("Invalid email: %(email)s"), params={"email": email})
+                for email in invalid_emails
+            ]
+        )
 
 
 def validate_file_size(file):
     filesize = file.size
 
-    if filesize > 10485760*5:
+    if filesize > 10485760 * 5:
         raise ValidationError("The maximum file size that can be uploaded is 10MB")

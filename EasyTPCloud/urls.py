@@ -14,14 +14,13 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.conf.urls.static import static
-from django.conf import settings
 
-from django.contrib import admin
-from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from django.urls import include, path
 
 urlpatterns = [
     # path('adminpanel/', admin.site.urls),
     # path('', include('main.urls')),  # Original template-based views
-    path('', include('api.urls')),  # API endpoints for React frontend
+    path("", include("api.urls")),  # API endpoints for React frontend
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -1,12 +1,14 @@
 """Unit tests for shared.files.validation module."""
-import pytest
+
 import base64
+
+import pytest
 from django.core.exceptions import SuspiciousOperation
 
 from shared.files.validation import (
     safe_base64_decode,
-    validate_and_sanitize_path,
     sanitize_filename,
+    validate_and_sanitize_path,
 )
 
 
@@ -94,6 +96,7 @@ class TestValidateAndSanitizePath:
     def test_path_outside_base_blocked(self, tmp_path):
         """Test path resolving outside base directory is blocked."""
         import os
+
         # Create a symlink that resolves outside the base path
         malicious_link = tmp_path / "escape"
         try:
@@ -107,6 +110,7 @@ class TestValidateAndSanitizePath:
         """Test symlink that points outside base is blocked."""
         # Create a symlink pointing outside
         import os
+
         symlink_path = tmp_path / "evil_link"
         try:
             os.symlink("/etc", symlink_path)
