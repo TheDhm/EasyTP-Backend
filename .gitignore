@@ -11,3 +11,6 @@ wheels/
 
 db.sqlite3
 .env
+
+.coverage
+*_GUIDE.md
