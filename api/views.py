@@ -3,6 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from .permissions import IsAdminUser, CanAccessApp
 from django.contrib.auth import login, logout
 from django.shortcuts import get_object_or_404
 from django.http import Http404, FileResponse
@@ -109,7 +111,7 @@ class LoginView(APIView):
                 'user': UserSerializer(user).data,
             }, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class LogoutView(APIView):
@@ -274,7 +276,7 @@ class AppsView(APIView):
 
 class StartPodView(APIView):
     """Start pod endpoint"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CanAccessApp]
 
     def post(self, request, app_name):
         user = request.user
@@ -289,11 +291,11 @@ class StartPodView(APIView):
         else:
             target_user = user
 
-        try:
-            # Check if app exists and user has access
-            app = get_object_or_404(App, name=app_name)
-            pod = get_object_or_404(Pod, pod_user=target_user, app_name=app_name)
+        # Get app and pod - let Http404 propagate naturally
+        app = get_object_or_404(App, name=app_name)
+        pod = get_object_or_404(Pod, pod_user=target_user, app_name=app_name)
 
+        try:
             cleaned_username = target_user.username.replace('_', '-').replace('.', '-').lower()
             readonly_volume = target_user.role in [DefaultUser.STUDENT, DefaultUser.GUEST]
 
@@ -349,7 +351,7 @@ class StartPodView(APIView):
 
 class StopPodView(APIView):
     """Stop pod endpoint"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CanAccessApp]
 
     def post(self, request, app_name):
         user = request.user
@@ -364,9 +366,10 @@ class StopPodView(APIView):
         else:
             target_user = user
 
-        try:
-            pod = get_object_or_404(Pod, pod_user=target_user, app_name=app_name)
+        # Get pod - let Http404 propagate naturally
+        pod = get_object_or_404(Pod, pod_user=target_user, app_name=app_name)
 
+        try:
             # Import Kubernetes clients
             from kubernetes import client
             from kubernetes.client.rest import ApiException
@@ -397,7 +400,7 @@ class StopPodView(APIView):
                 # Delete ingress
                 delete_ingress(pod_name, app_name_lower)
 
-            except ApiException as e:
+            except ApiException:
                 # Log but don't fail if resources don't exist
                 pass
 
@@ -409,8 +412,8 @@ class StopPodView(APIView):
             try:
                 instance = Instances.objects.get(pod=pod, instance_name=pod_name)
                 instance.delete()
-            except Instances.DoesNotExist as e:
-                print("instance already deleted", e)
+            except Instances.DoesNotExist:
+                pass  # Instance already deleted
 
             # Log activity
             ActivityLogger.log_pod_stop(target_user, app_name, pod_name, request)
@@ -429,21 +432,17 @@ class FileExplorerView(APIView):
     """File explorer endpoint"""
     permission_classes = [IsAuthenticated]
 
+    def _get_user_path(self, user):
+        """Get user's base path and readonly status based on role."""
+        if user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or user.is_superuser:
+            return '/READONLY/', False
+        return f'/USERDATA/{user.username}/', False
+
     @method_decorator(never_cache)
     def get(self, request, path=None):
         """Secure file browsing endpoint"""
         user = request.user
-
-        # Determine user path and permissions based on role
-        if user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or user.is_superuser:
-            # Teachers/Admins: Read-write access to /READONLY/ shared directory
-            user_path = '/READONLY/'
-            is_readonly = False
-        else:
-            # Students/Guests: Read-write access to their own directory, read-only to /READONLY/
-            # For now, default to their own directory
-            user_path = f'/USERDATA/{user.username}/'
-            is_readonly = False
+        user_path, is_readonly = self._get_user_path(user)
 
         # Ensure user directory exists
         try:
@@ -520,16 +519,7 @@ class FileExplorerView(APIView):
     def post(self, request, path=None):
         """File upload endpoint"""
         user = request.user
-
-        # Determine user path and permissions based on role
-        if user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or user.is_superuser:
-            # Teachers/Admins: Read-write access to /READONLY/ shared directory
-            user_path = '/READONLY/'
-            is_readonly = False
-        else:
-            # Students/Guests: Read-write access to their own directory
-            user_path = f'/USERDATA/{user.username}/'
-            is_readonly = False
+        user_path, is_readonly = self._get_user_path(user)
 
         # Check if uploads are allowed for this user/path
         if is_readonly:
@@ -619,16 +609,7 @@ class FileExplorerView(APIView):
     def delete(self, request, path):
         """File deletion endpoint"""
         user = request.user
-
-        # Determine user path and permissions based on role
-        if user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or user.is_superuser:
-            # Teachers/Admins: Read-write access to /READONLY/ shared directory
-            user_path = '/READONLY/'
-            is_readonly = False
-        else:
-            # Students/Guests: Read-write access to their own directory
-            user_path = f'/USERDATA/{user.username}/'
-            is_readonly = False
+        user_path, is_readonly = self._get_user_path(user)
 
         # Check if deletes are allowed for this user/path
         if is_readonly:
@@ -707,6 +688,12 @@ class DownloadFileView(APIView):
     """File download endpoint"""
     permission_classes = [IsAuthenticated]
 
+    def _get_user_path(self, user):
+        """Get user's base path based on role."""
+        if user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or user.is_superuser:
+            return '/READONLY/'
+        return f'/USERDATA/{user.username}/'
+
     @method_decorator(never_cache)
     def get(self, request, path):
         """Secure file download endpoint"""
@@ -715,14 +702,7 @@ class DownloadFileView(APIView):
         try:
             # Decode and validate path
             decoded_path = safe_base64_decode(path)
-
-            # Determine user path based on role
-            if user.role in [DefaultUser.TEACHER, DefaultUser.ADMIN] or user.is_superuser:
-                # Teachers/Admins: Access to /READONLY/ shared directory
-                user_path = '/READONLY/'
-            else:
-                # Students/Guests: Access to their own directory
-                user_path = f'/USERDATA/{user.username}/'
+            user_path = self._get_user_path(user)
 
             # Validate path
             validated_path = validate_and_sanitize_path(decoded_path, user_path)
@@ -766,14 +746,10 @@ class DownloadFileView(APIView):
 
 class UserActivitiesView(APIView):
     """User activities dashboard for admins"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
     @method_decorator(never_cache)
     def get(self, request):
-        # Check admin permissions
-        if not request.user.is_superuser and request.user.role != DefaultUser.ADMIN:
-            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
-
         # Get filter parameters
         filter_form = ActivityFilterForm(request.GET)
         activities = UserActivity.objects.select_related('user').all()
