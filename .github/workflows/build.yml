@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: django-app
+          - image: easytp-backend
             context: .
             dockerfile: ./Dockerfile
           - image: logisim
