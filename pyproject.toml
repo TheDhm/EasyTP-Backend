@@ -56,3 +56,54 @@ dependencies = [
     "websocket-client==1.8.0",
     "zipp==3.21.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-django>=4.5.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+    "factory-boy>=3.3.0",
+    "faker>=22.0.0",
+    "responses>=0.25.0",
+    "ruff>=0.4.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "EasyTPCloud.settings.test"
+python_files = ["test_*.py"]
+addopts = [
+    "--strict-markers",
+    "-ra",
+    "--cov=api",
+    "--cov=main",
+    "--cov=shared",
+    "--cov-report=term-missing",
+]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["api*", "main*", "shared*", "EasyTPCloud*"]
+exclude = ["tests*", "static*"]
+
+[tool.coverage.run]
+omit = [
+    "tests/*",
+    "*/migrations/*",
+    "*/settings/*",
+    "manage.py",
+    "*/admin.py",
+    "main/views.py",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
