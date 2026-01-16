@@ -65,3 +65,4 @@ yarn-error.log*
 # Media files (if you don't want them in the image)
 media/
 staticfiles/
+dockerfiles/*
