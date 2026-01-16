@@ -841,3 +841,31 @@ class UserActivitiesView(APIView):
                 "filters": {"search_query": search_query, "form_data": request.GET.dict()},
             }
         )
+
+
+class UpdateAppImageView(APIView):
+    """CI webhook to update app image tag after build."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Verify webhook secret
+        secret = request.headers.get("X-Webhook-Secret")
+        if secret != os.environ.get("WEBHOOK_SECRET"):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        app_name = request.data.get("app_name")
+        image_tag = request.data.get("image_tag")
+
+        if not app_name or not image_tag:
+            return Response(
+                {"error": "Missing app_name or image_tag"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            app = App.objects.get(name=app_name)
+            app.image = f"{app_name}:{image_tag}"
+            app.save()
+            return Response({"status": "updated", "image": app.image})
+        except App.DoesNotExist:
+            return Response({"error": "App not found"}, status=status.HTTP_404_NOT_FOUND)

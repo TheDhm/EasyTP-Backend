@@ -1,5 +1,7 @@
 """Kubernetes deployment, service, and ingress operations."""
 
+import os
+
 from kubernetes import client
 from kubernetes.client.rest import ApiException
 
@@ -159,8 +161,10 @@ def deploy_app(
                     "containers": [
                         {
                             "name": app_name,
-                            "image": image,
-                            "imagePullPolicy": "Never",
+                            "image": f"{os.environ.get('REGISTRY_URL')}/{image}"
+                            if os.environ.get("REGISTRY_URL")
+                            else image,
+                            "imagePullPolicy": "IfNotPresent",
                             "ports": [{"containerPort": 8080}],
                             "resources": {
                                 "limits": {
@@ -208,6 +212,7 @@ def deploy_app(
                             },
                         },
                     ],
+                    "imagePullSecrets": [{"name": "registry-pull-secret"}],
                 },
             },
         },

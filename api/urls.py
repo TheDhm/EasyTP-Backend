@@ -40,4 +40,6 @@ urlpatterns = [
     path("download/<path:path>/", views.DownloadFileView.as_view(), name="download_file"),
     # User activities (admin only)
     path("usage_statistics/", views.UserActivitiesView.as_view(), name="user_activities"),
+    # CI webhook
+    path("webhook/update-image/", views.UpdateAppImageView.as_view(), name="update_image"),
 ]

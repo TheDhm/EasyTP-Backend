@@ -169,3 +169,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Update Logisim image tag in api
+        run: |
+          curl -X POST "${{ vars.DJANGO_API_URL }}/api/webhook/update-image/" \
+            -H "Content-Type: application/json" \
+            -H "X-Webhook-Secret: ${{ secrets.WEBHOOK_SECRET }}" \
+            -d '{"app_name": "logisim", "image_tag": "${{ github.sha }}"}'
