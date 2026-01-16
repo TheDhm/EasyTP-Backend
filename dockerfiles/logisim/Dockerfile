@@ -1,6 +1,8 @@
 FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
+# test comment to trigger build
+
 # Install all required packages in a single layer and clean up
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
