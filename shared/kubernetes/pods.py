@@ -91,23 +91,37 @@ def get_deployment_stages(pod_name, namespace="apps"):
         except ApiException:
             pass
 
-        # Check Service has endpoints
+        # Check Service has endpoints (EndpointSlice-based)
         try:
-            endpoints = core_api.list_namespaced_endpoints(
-                namespace=namespace, label_selector=f"serviceApp={pod_name}"
+            # 1. Find the Service first
+            services = core_api.list_namespaced_service(
+                namespace=namespace,
+                label_selector=f"serviceApp={pod_name}",
             )
-            if endpoints.items:
-                ep = endpoints.items[0]
-                # Check if endpoints has subsets with addresses
-                if ep.subsets and any(
-                    subset.addresses for subset in ep.subsets if subset.addresses
-                ):
-                    stages["service"] = "ready"
-                else:
-                    # Service exists but no endpoints yet
-                    stages["service"] = "pending"
+
+            if services.items:
+                service = services.items[0]
+
+                discovery_api = client.DiscoveryV1Api()
+                slices = discovery_api.list_namespaced_endpoint_slice(
+                    namespace=namespace,
+                    label_selector=f"kubernetes.io/service-name={service.metadata.name}",
+                )
+
+                ready = False
+                for s in slices.items:
+                    for ep in s.endpoints or []:
+                        # In k3s this field is always present
+                        if ep.conditions and ep.conditions.ready:
+                            ready = True
+                            break
+                    if ready:
+                        break
+
+                stages["service"] = "ready" if ready else "pending"
+
         except ApiException:
-            pass
+            stages["service"] = "error"
 
         # Check Ingress status
         try:
