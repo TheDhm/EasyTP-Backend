@@ -348,11 +348,18 @@ class StartPodView(APIView):
             return Response(
                 {
                     "status": "starting",
-                    "message": "Pod deployment initiated",
+                    "message": "Creating deployment...",
                     "pod_name": pod.pod_name,
                     "novnc_url": instance.novnc_url if hasattr(instance, "novnc_url") else None,
-                    "deployment_status": True,  # Optimistic status for immediate UI update
+                    "deployment_status": False,  # Not fully ready yet
                     "is_deployed": True,
+                    "ready": False,  # VNC not accessible until all stages ready
+                    "stages": {
+                        "deployment": "creating",
+                        "pod": "pending",
+                        "service": "pending",
+                        "ingress": "pending",
+                    },
                 }
             )
 
