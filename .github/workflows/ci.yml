@@ -176,7 +176,7 @@ jobs:
           API_URL: ${{ vars.DJANGO_API_URL }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          curl -X POST "${API_URL}/api/webhook/update-image/" \
+          curl -X POST "${API_URL}/webhook/update-image/" \
             -H "Content-Type: application/json" \
             -H "X-Webhook-Secret: ${WEBHOOK_SECRET}" \
             -d "{\"app_name\": \"logisim\", \"image_tag\": \"${IMAGE_TAG}\"}"
