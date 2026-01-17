@@ -174,9 +174,8 @@ jobs:
         env:
           WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
           API_URL: ${{ vars.DJANGO_API_URL }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
           curl -X POST "${API_URL}/webhook/update-image/" \
             -H "Content-Type: application/json" \
             -H "X-Webhook-Secret: ${WEBHOOK_SECRET}" \
-            -d "{\"app_name\": \"LOGISIM\", \"image_tag\": \"${IMAGE_TAG}\"}"
+            -d "{\"app_name\": \"LOGISIM\", \"image_tag\": \"${GITHUB_SHA::7}\"}"
