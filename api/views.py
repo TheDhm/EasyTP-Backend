@@ -864,7 +864,7 @@ class UpdateAppImageView(APIView):
 
         try:
             app = App.objects.get(name=app_name)
-            image_name = app.image.split(":")[0]
+            image_name = app.image.split(":")[0].lower()
             app.image = f"{image_name}:{image_tag}"
             app.save()
             return Response({"status": "updated", "image": app.image})
