@@ -179,4 +179,4 @@ jobs:
           curl -X POST "${API_URL}/webhook/update-image/" \
             -H "Content-Type: application/json" \
             -H "X-Webhook-Secret: ${WEBHOOK_SECRET}" \
-            -d "{\"app_name\": \"logisim\", \"image_tag\": \"${IMAGE_TAG}\"}"
+            -d "{\"app_name\": \"LOGISIM\", \"image_tag\": \"${IMAGE_TAG}\"}"
