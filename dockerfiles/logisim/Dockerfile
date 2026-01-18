@@ -1,6 +1,7 @@
 FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
+# rebuild
 
 # Install all required packages in a single layer and clean up
 RUN apt-get update && \
