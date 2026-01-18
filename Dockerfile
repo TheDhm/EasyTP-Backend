@@ -36,8 +36,9 @@ COPY . /app/
 
 RUN mkdir -p /READONLY /USERDATA /app/media
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app \
+# Create non-root user with explicit UID 1000 (matches securityContext)
+RUN groupadd --gid 1000 app \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash app \
     && chown -R app:app /app /opt/venv
 USER app
 

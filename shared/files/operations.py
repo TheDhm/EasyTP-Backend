@@ -94,11 +94,12 @@ def save_file_secure(file_path, uploaded_file):
     # Ensure directory exists
     directory = os.path.dirname(file_path)
     os.makedirs(directory, exist_ok=True)
+    os.chmod(directory, 0o775)  # Group-writable directories
 
     # Write file in chunks to handle large files efficiently and securely
     with open(file_path, "wb") as destination:
         for chunk in uploaded_file.chunks():
             destination.write(chunk)
 
-    # Set restrictive permissions (owner read/write only)
-    os.chmod(file_path, 0o600)
+    # Set group-readable permissions for cross-pod access
+    os.chmod(file_path, 0o664)
