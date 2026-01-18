@@ -156,7 +156,7 @@ jobs:
           images: ${{ secrets.REGISTRY_URL }}/logisim
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}-{{sha}}
             type=ref,event=tag
 
       - name: Build and push
@@ -178,4 +178,4 @@ jobs:
           curl -X POST "${API_URL}/webhook/update-image/" \
             -H "Content-Type: application/json" \
             -H "X-Webhook-Secret: ${WEBHOOK_SECRET}" \
-            -d "{\"app_name\": \"LOGISIM\", \"image_tag\": \"${GITHUB_SHA::7}\"}"
+            -d "{\"app_name\": \"LOGISIM\", \"image_tag\": \"$(date +'%Y%m%d-%H%M%S')-${GITHUB_SHA::7}\"}"
