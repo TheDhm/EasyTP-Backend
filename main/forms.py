@@ -4,7 +4,6 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
-from .custom_validators import validate_file_size
 from .models import AccessGroup, App, DefaultUser, UserActivity, UsersFromCSV
 
 
@@ -168,12 +167,6 @@ class CustomAddAccessGroup(forms.ModelForm):
     class Meta:
         model = AccessGroup
         fields = "__all__"
-
-
-class UploadFileForm(forms.Form):
-    file = forms.FileField(
-        max_length=1000, validators=[validate_file_size], label="Upload file here"
-    )
 
 
 class ActivityFilterForm(forms.Form):
