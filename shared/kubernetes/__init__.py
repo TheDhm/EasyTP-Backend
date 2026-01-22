@@ -1,7 +1,7 @@
 # Kubernetes operation utilities
 from .config import load_k8s_config
 from .deployments import create_ingress, create_service, delete_ingress, deploy_app
-from .pods import display_apps, generate_pod_if_not_exist, stop_deployed_pod
+from .pods import display_apps, generate_pod_if_not_exist
 
 __all__ = [
     "load_k8s_config",
@@ -11,5 +11,4 @@ __all__ = [
     "deploy_app",
     "generate_pod_if_not_exist",
     "display_apps",
-    "stop_deployed_pod",
 ]

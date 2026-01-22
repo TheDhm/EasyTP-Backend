@@ -39,8 +39,8 @@ from shared.kubernetes import (
     deploy_app,
     display_apps,
     load_k8s_config,
-    stop_deployed_pod,
 )
+from shared.kubernetes.cleanup import create_cleanup_job
 
 from .permissions import CanAccessApp, IsAdminUser
 from .serializers import (
@@ -342,8 +342,10 @@ class StartPodView(APIView):
             # Log activity
             ActivityLogger.log_pod_start(target_user, app_name, pod.pod_name, request)
 
-            # Schedule pod stop
-            stop_deployed_pod(pod_id=pod.id, pod_name=pod.pod_name, app_name=app_name)
+            # Schedule cleanup job (3 minutes default)
+            job_name = create_cleanup_job(pod.pod_name, app_name.lower())
+            pod.cleanup_job_name = job_name
+            pod.save(update_fields=["cleanup_job_name"])
 
             return Response(
                 {
@@ -389,6 +391,9 @@ class StopPodView(APIView):
         pod = get_object_or_404(Pod, pod_user=target_user, app_name=app_name)
 
         try:
+            # Cancel any scheduled stop task FIRST
+            pod.cancel_scheduled_stop()
+
             # Import Kubernetes clients
             from kubernetes import client
             from kubernetes.client.rest import ApiException

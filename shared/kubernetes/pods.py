@@ -2,7 +2,6 @@
 
 import hashlib
 import uuid
-from time import sleep
 
 from kubernetes import client
 from kubernetes.client.rest import ApiException
@@ -10,7 +9,6 @@ from kubernetes.client.rest import ApiException
 from shared.utils.threading import autotask
 
 from .config import load_k8s_config
-from .deployments import delete_ingress
 
 
 def get_deployment_stages(pod_name, namespace="apps"):
@@ -314,52 +312,3 @@ def display_apps(apps, user):
         }
 
     return data
-
-
-@autotask
-def stop_deployed_pod(pod_id, pod_name, app_name):
-    """Stop a deployed pod after a delay."""
-    # Import here to avoid circular imports
-    from main.models import Instances, Pod
-
-    print("sleeping for 3 minutes before stopping the pod...")
-    sleep(60 * 3)  # Delay before stopping the pod
-    print(f"Stopping pod {pod_name} for app {app_name}...")
-
-    load_k8s_config()
-
-    api_instance = client.CoreV1Api()
-    apps_instance = client.AppsV1Api()
-
-    # Delete ingress
-    delete_ingress(pod_name, app_name)
-
-    # Delete service
-    try:
-        _deleted_service = api_instance.delete_namespaced_service(
-            namespace="apps", name=app_name + "-service-" + pod_name
-        )
-    except ApiException as a:
-        print("delete service exception", a)
-
-    # Delete deployment
-    try:
-        _deleted_deployment = apps_instance.delete_namespaced_deployment(
-            namespace="apps", name=app_name + "-deployment-" + pod_name
-        )
-    except ApiException as a:
-        print("delete deployment exception", a)
-
-    # Delete instance record
-    try:
-        pod = Pod.objects.get(id=pod_id, app_name=app_name)
-        instance = Instances.objects.get(pod=pod, instance_name=pod_name)
-        instance.delete()
-
-        pod.is_deployed = False
-        pod.save()
-
-    except (Pod.DoesNotExist, Instances.DoesNotExist) as e:
-        print("instance already deleted", e)
-
-    print(f"Pod {pod_name} for app {app_name} has been stopped.")

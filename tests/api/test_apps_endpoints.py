@@ -179,8 +179,9 @@ class TestStartPodView:
             patch("api.views.deploy_app") as mock_deploy,
             patch("api.views.create_service"),
             patch("api.views.create_ingress") as mock_ingress,
-            patch("api.views.stop_deployed_pod"),
+            patch("api.views.create_cleanup_job") as mock_cleanup,
         ):
+            mock_cleanup.return_value = "cleanup-job-123"
             mock_ingress.return_value = "test.example.com"
             response = api_client.post(f"/start/{test_app.name}/")
 

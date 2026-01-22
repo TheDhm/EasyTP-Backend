@@ -212,6 +212,24 @@ class Pod(models.Model):
 
     is_deployed = models.BooleanField(default=False, help_text=_("Is the pod deployed?"))
 
+    cleanup_job_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text=_("K8s Job name for scheduled cleanup"),
+    )
+
+    def cancel_scheduled_stop(self):
+        """Cancel any pending cleanup job by deleting it."""
+        if self.cleanup_job_name:
+            from shared.kubernetes.cleanup import delete_cleanup_job
+
+            delete_cleanup_job(self.cleanup_job_name)
+            self.cleanup_job_name = None
+            self.save(update_fields=["cleanup_job_name"])
+            return True
+        return False
+
     def __str__(self):
         return f"{self.pod_user.username}:{self.pod_name}:{self.app_name}"
 
