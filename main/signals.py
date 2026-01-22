@@ -4,10 +4,9 @@ import shutil
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.signals import user_logged_out
-from django.db.models.signals import pre_delete
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
-from .custom_functions import autotask
 
 User = get_user_model()
 
@@ -18,8 +17,7 @@ def delete_guest_user(sender, request, user, **kwargs):
         user.delete()  # Delete guest account after logout
 
 
-@receiver(pre_delete, sender=User)
-@autotask
+@receiver(post_delete, sender=User)
 def delete_user_folder(sender, instance, **kwargs):
     """
     Deletes the user's directory when the user is deleted.
