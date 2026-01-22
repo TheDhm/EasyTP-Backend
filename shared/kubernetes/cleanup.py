@@ -14,7 +14,7 @@ CLEANUP_IMAGE = "bitnami/kubectl:latest"
 NAMESPACE = "apps"
 
 
-def create_cleanup_job(pod_name: str, app_name: str, delay_seconds: int = 10) -> str:
+def create_cleanup_job(pod_name: str, app_name: str, delay_seconds: int = 180) -> str:
     """
     Create a K8s Job that deletes resources after a delay.
 
