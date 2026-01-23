@@ -1,7 +1,7 @@
 # EasyTP Backend
 
 [![Python](https://img.shields.io/badge/Python-3.14-blue)](https://www.python.org/)
-[![Django](https://img.shields.io/badge/Django-5.2.6-green)](https://www.djangoproject.com/)
+[![Django](https://img.shields.io/badge/Django-6.0-green)](https://www.djangoproject.com/)
 [![DRF](https://img.shields.io/badge/DRF-3.16.1-red)](https://www.django-rest-framework.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791)](https://www.postgresql.org/)
 [![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://easytp.melekabderrahmane.com)
