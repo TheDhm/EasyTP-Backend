@@ -4,18 +4,11 @@ import os
 import shutil
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.signals import user_logged_out
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-
-
-@receiver(user_logged_out)
-def delete_guest_user(sender, request, user, **kwargs):
-    if user.is_guest():
-        user.delete()
 
 
 @receiver(post_delete, sender=User)

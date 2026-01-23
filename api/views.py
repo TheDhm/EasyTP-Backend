@@ -133,9 +133,7 @@ class LogoutView(APIView):
     def post(self, request):
         try:
             user = request.user
-
-            # Check if user is a guest before logout operations
-            is_guest_user = user.is_guest()
+            is_guest = user.is_guest()
 
             # Log logout activity (before potential user deletion)
             ActivityLogger.log_logout(user, request)
@@ -146,8 +144,8 @@ class LogoutView(APIView):
                 token = RefreshToken(refresh_token)
                 token.blacklist()
 
-            # Delete guest user after logout operations
-            if is_guest_user:
+            # Delete guest user (triggers post_delete signal for folder cleanup)
+            if is_guest:
                 user.delete()
                 return Response({"message": "Guest session ended"}, status=status.HTTP_200_OK)
 
