@@ -1,3 +1,9 @@
+# Space Cadet Pinball Docker Container
+#
+# Credits:
+# - Game engine: https://github.com/k4zmu2a/SpaceCadetPinball
+# - Game data:   https://github.com/amamic1803/Full-Tilt-Pinball
+
 FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
