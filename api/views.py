@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from api.decorators import require_turnstile
 from main.forms import ActivityFilterForm
 from main.models import AccessGroup, App, DefaultUser, Instances, Pod, UserActivity
 from main.utils.activity_logger import ActivityLogger
@@ -74,6 +75,7 @@ class SignupView(APIView):
 
     permission_classes = [AllowAny]
 
+    @require_turnstile
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
@@ -103,6 +105,7 @@ class LoginView(APIView):
 
     permission_classes = [AllowAny]
 
+    @require_turnstile
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
@@ -159,6 +162,7 @@ class ContinueAsGuestView(APIView):
 
     permission_classes = [AllowAny]
 
+    @require_turnstile
     def post(self, request):
         try:
             # Get or create guest group

@@ -26,6 +26,10 @@ DEFAULT_APP_PORT_RANGE = "4"  # default port range 4****
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 
+# Cloudflare Turnstile (bot verification)
+# Default is Cloudflare's "always passes" test secret key for dev
+TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY", "1x0000000000000000000000000000000AA")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 
 

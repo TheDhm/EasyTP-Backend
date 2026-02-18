@@ -1,7 +1,30 @@
 """Tests for authentication API endpoints."""
 
 import pytest
+import responses
 from rest_framework import status
+
+TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+
+
+def mock_turnstile_success():
+    """Register a responses mock that makes Turnstile verification succeed."""
+    responses.add(
+        responses.POST,
+        TURNSTILE_VERIFY_URL,
+        json={"success": True},
+        status=200,
+    )
+
+
+def mock_turnstile_failure():
+    """Register a responses mock that makes Turnstile verification fail."""
+    responses.add(
+        responses.POST,
+        TURNSTILE_VERIFY_URL,
+        json={"success": False, "error-codes": ["invalid-input-response"]},
+        status=200,
+    )
 
 
 @pytest.mark.django_db
@@ -15,15 +38,18 @@ class TestSignupEndpoint:
 
         AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
 
+    @responses.activate
     def test_signup_success(self, api_client):
         """Test successful user signup."""
         from main.models import DefaultUser
 
+        mock_turnstile_success()
         data = {
             "username": "newuser",
             "email": "newuser@example.com",
             "password": "securePass123!",
             "password_confirm": "securePass123!",
+            "turnstile_token": "test-token",
         }
         response = api_client.post("/auth/signup/", data, format="json")
         print(response.data)
@@ -31,38 +57,73 @@ class TestSignupEndpoint:
         assert "access" in response.data or "user" in response.data
         assert DefaultUser.objects.filter(username="newuser").exists()
 
+    @responses.activate
     def test_signup_password_mismatch(self, api_client):
         """Test signup with mismatched passwords fails."""
+        mock_turnstile_success()
         data = {
             "username": "newuser",
             "email": "new@example.com",
             "password": "securePass123!",
             "password_confirm": "differentPass!",
+            "turnstile_token": "test-token",
         }
         response = api_client.post("/auth/signup/", data, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    @responses.activate
     def test_signup_duplicate_username(self, api_client, student_user):
         """Test signup with existing username fails."""
+        mock_turnstile_success()
         data = {
             "username": student_user.username,
             "email": "different@example.com",
             "password": "securePass123!",
             "password_confirm": "securePass123!",
+            "turnstile_token": "test-token",
         }
         response = api_client.post("/auth/signup/", data, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    @responses.activate
     def test_signup_invalid_email(self, api_client):
         """Test signup with invalid email fails."""
+        mock_turnstile_success()
         data = {
             "username": "newuser",
             "email": "not-an-email",
             "password": "securePass123!",
             "password_confirm": "securePass123!",
+            "turnstile_token": "test-token",
         }
         response = api_client.post("/auth/signup/", data, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_signup_missing_turnstile_token(self, api_client):
+        """Test signup without turnstile token returns 400."""
+        data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "securePass123!",
+            "password_confirm": "securePass123!",
+        }
+        response = api_client.post("/auth/signup/", data, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "turnstile" in response.data["detail"].lower()
+
+    @responses.activate
+    def test_signup_invalid_turnstile_token(self, api_client):
+        """Test signup with invalid turnstile token returns 403."""
+        mock_turnstile_failure()
+        data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "securePass123!",
+            "password_confirm": "securePass123!",
+            "turnstile_token": "invalid-token",
+        }
+        response = api_client.post("/auth/signup/", data, format="json")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
@@ -76,10 +137,12 @@ class TestLoginEndpoint:
 
         AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
 
+    @responses.activate
     def test_login_success(self, api_client):
         """Test successful login returns JWT tokens."""
         from main.models import AccessGroup, DefaultUser
 
+        mock_turnstile_success()
         # Create user
         group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
         DefaultUser.objects.create_user(
@@ -93,29 +156,58 @@ class TestLoginEndpoint:
         data = {
             "username": "loginuser",
             "password": "testpass123",
+            "turnstile_token": "test-token",
         }
         response = api_client.post("/auth/login/", data, format="json")
         assert response.status_code == status.HTTP_200_OK
         assert "access" in response.data
         assert "refresh" in response.data
 
+    @responses.activate
     def test_login_wrong_password(self, api_client, student_user):
         """Test login with wrong password fails."""
+        mock_turnstile_success()
         data = {
             "username": student_user.username,
             "password": "wrongpassword",
+            "turnstile_token": "test-token",
         }
         response = api_client.post("/auth/login/", data, format="json")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    @responses.activate
     def test_login_nonexistent_user(self, api_client):
         """Test login with nonexistent user fails."""
+        mock_turnstile_success()
         data = {
             "username": "nonexistent",
             "password": "somepassword",
+            "turnstile_token": "test-token",
         }
         response = api_client.post("/auth/login/", data, format="json")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_login_missing_turnstile_token(self, api_client):
+        """Test login without turnstile token returns 400."""
+        data = {
+            "username": "someuser",
+            "password": "somepassword",
+        }
+        response = api_client.post("/auth/login/", data, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "turnstile" in response.data["detail"].lower()
+
+    @responses.activate
+    def test_login_invalid_turnstile_token(self, api_client):
+        """Test login with invalid turnstile token returns 403."""
+        mock_turnstile_failure()
+        data = {
+            "username": "someuser",
+            "password": "somepassword",
+            "turnstile_token": "invalid-token",
+        }
+        response = api_client.post("/auth/login/", data, format="json")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
@@ -129,10 +221,12 @@ class TestTokenRefresh:
 
         AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
 
+    @responses.activate
     def test_token_refresh(self, api_client):
         """Test refreshing JWT token."""
         from main.models import AccessGroup, DefaultUser
 
+        mock_turnstile_success()
         # Create user and login
         group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
         DefaultUser.objects.create_user(
@@ -148,6 +242,7 @@ class TestTokenRefresh:
             {
                 "username": "refreshuser",
                 "password": "testpass123",
+                "turnstile_token": "test-token",
             },
             format="json",
         )
@@ -182,27 +277,56 @@ class TestTokenRefresh:
 class TestGuestLogin:
     """Tests for guest user creation."""
 
+    @responses.activate
     def test_guest_login_creates_user(self, api_client):
         """Test guest login creates a guest user."""
         from main.models import DefaultUser
 
-        response = api_client.post("/auth/continue-as-guest/", format="json")
+        mock_turnstile_success()
+        response = api_client.post(
+            "/auth/continue-as-guest/",
+            {"turnstile_token": "test-token"},
+            format="json",
+        )
         assert response.status_code == status.HTTP_200_OK
         assert "access" in response.data
         # Check guest user was created
         assert DefaultUser.objects.filter(role=DefaultUser.GUEST).exists()
 
+    @responses.activate
     def test_guest_user_has_limited_role(self, api_client):
         """Test guest user has GUEST role."""
         from main.models import DefaultUser
 
-        response = api_client.post("/auth/continue-as-guest/", format="json")
+        mock_turnstile_success()
+        response = api_client.post(
+            "/auth/continue-as-guest/",
+            {"turnstile_token": "test-token"},
+            format="json",
+        )
         assert response.status_code == status.HTTP_200_OK
 
         # Find the created guest user
         guest = DefaultUser.objects.filter(role=DefaultUser.GUEST).last()
         assert guest is not None
         assert guest.role == DefaultUser.GUEST
+
+    def test_guest_login_missing_turnstile_token(self, api_client):
+        """Test guest login without turnstile token returns 400."""
+        response = api_client.post("/auth/continue-as-guest/", format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "turnstile" in response.data["detail"].lower()
+
+    @responses.activate
+    def test_guest_login_invalid_turnstile_token(self, api_client):
+        """Test guest login with invalid turnstile token returns 403."""
+        mock_turnstile_failure()
+        response = api_client.post(
+            "/auth/continue-as-guest/",
+            {"turnstile_token": "invalid-token"},
+            format="json",
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
@@ -232,10 +356,12 @@ class TestLogout:
 
         AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
 
+    @responses.activate
     def test_logout_success(self, api_client):
         """Test logout invalidates refresh token."""
         from main.models import AccessGroup, DefaultUser
 
+        mock_turnstile_success()
         # Create user and login
         group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
         DefaultUser.objects.create_user(
@@ -252,6 +378,7 @@ class TestLogout:
             {
                 "username": "logoutuser",
                 "password": "testpass123",
+                "turnstile_token": "test-token",
             },
             format="json",
         )
