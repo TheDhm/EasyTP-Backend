@@ -17,7 +17,8 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.decorators import require_turnstile
 from main.forms import ActivityFilterForm
@@ -53,6 +54,20 @@ from .serializers import (
 )
 
 
+class CustomTokenRefreshView(TokenRefreshView):
+    """Token refresh that identifies the user for activity logging"""
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            try:
+                token = AccessToken(response.data["access"])
+                request.user = DefaultUser.objects.get(id=token["user_id"])
+            except Exception:
+                pass
+        return response
+
+
 class LandingPageView(APIView):
     """API endpoint for landing page"""
 
@@ -80,6 +95,7 @@ class SignupView(APIView):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            request.user = user
 
             # Log account creation
             ActivityLogger.log_activity(
@@ -110,6 +126,7 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data["user"]
+            request.user = user
 
             # Log login activity
             ActivityLogger.log_login(user, request)
@@ -179,6 +196,8 @@ class ContinueAsGuestView(APIView):
                 first_name="Guest",
                 last_name="User",
             )
+
+            request.user = guest_user
 
             # Log guest access
             ActivityLogger.log_login(guest_user, request)
