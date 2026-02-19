@@ -70,6 +70,9 @@ dev = [
     "pre-commit>=4.0.0",
 ]
 
+[project.scripts]
+dev = "EasyTPCloud.cli:dev"
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "EasyTPCloud.settings.test"
 python_files = ["test_*.py"]
@@ -90,6 +93,7 @@ build-backend = "setuptools.build_meta"
 [dependency-groups]
 dev = [
     "pip-audit>=2.10.0",
+    "pytest>=9.0.2",
 ]
 
 [tool.setuptools.packages.find]

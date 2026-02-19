@@ -445,6 +445,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "pip-audit" },
+    { name = "pytest" },
 ]
 
 [package.metadata]
@@ -512,7 +513,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pip-audit", specifier = ">=2.10.0" }]
+dev = [
+    { name = "pip-audit", specifier = ">=2.10.0" },
+    { name = "pytest", specifier = ">=9.0.2" },
+]
 
 [[package]]
 name = "et-xmlfile"
