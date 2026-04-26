@@ -363,7 +363,7 @@ class StartPodView(APIView):
             # Log activity
             ActivityLogger.log_pod_start(target_user, app_name, pod.pod_name, request)
 
-            # Schedule cleanup job (3 minutes default)
+            # Schedule cleanup job (5 minutes default)
             job_name = create_cleanup_job(pod.pod_name, app_name.lower())
             pod.cleanup_job_name = job_name
             pod.save(update_fields=["cleanup_job_name"])
