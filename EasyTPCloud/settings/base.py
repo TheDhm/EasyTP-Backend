@@ -160,6 +160,18 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "main.throttling.CloudflareAnonRateThrottle",
+        "main.throttling.CloudflareUserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "user": "400/min",
+        "login": "5/min",
+        "signup": "3/min",
+        "guest": "5/min",
+        "token_refresh": "30/min",
+    },
 }
 
 # JWT Settings

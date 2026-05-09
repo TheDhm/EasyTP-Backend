@@ -16,6 +16,7 @@ from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -57,6 +58,9 @@ from .serializers import (
 class CustomTokenRefreshView(TokenRefreshView):
     """Token refresh that identifies the user for activity logging"""
 
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "token_refresh"
+
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
         if response.status_code == 200:
@@ -89,6 +93,8 @@ class SignupView(APIView):
     """User registration endpoint"""
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "signup"
 
     @require_turnstile
     def post(self, request):
@@ -120,6 +126,8 @@ class LoginView(APIView):
     """User login endpoint with consistent response format"""
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     @require_turnstile
     def post(self, request):
@@ -178,6 +186,8 @@ class ContinueAsGuestView(APIView):
     """Continue as guest endpoint"""
 
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "guest"
 
     @require_turnstile
     def post(self, request):

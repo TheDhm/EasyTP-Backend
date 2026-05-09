@@ -66,6 +66,7 @@ REST_FRAMEWORK.update(
             # Remove BrowsableAPIRenderer for tests
         ],
         "TEST_REQUEST_DEFAULT_FORMAT": "json",
+        "DEFAULT_THROTTLE_CLASSES": [],
     }
 )
 
