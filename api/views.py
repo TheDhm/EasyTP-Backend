@@ -16,7 +16,6 @@ from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -24,6 +23,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from api.decorators import require_turnstile
 from main.forms import ActivityFilterForm
 from main.models import AccessGroup, App, DefaultUser, Instances, Pod, UserActivity
+from main.throttling import CloudflareScopedRateThrottle
 from main.utils.activity_logger import ActivityLogger
 
 # Import from shared modules
@@ -58,7 +58,7 @@ from .serializers import (
 class CustomTokenRefreshView(TokenRefreshView):
     """Token refresh that identifies the user for activity logging"""
 
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [CloudflareScopedRateThrottle]
     throttle_scope = "token_refresh"
 
     def post(self, request, *args, **kwargs):
@@ -93,7 +93,7 @@ class SignupView(APIView):
     """User registration endpoint"""
 
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [CloudflareScopedRateThrottle]
     throttle_scope = "signup"
 
     @require_turnstile
@@ -126,7 +126,7 @@ class LoginView(APIView):
     """User login endpoint with consistent response format"""
 
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [CloudflareScopedRateThrottle]
     throttle_scope = "login"
 
     @require_turnstile
@@ -186,7 +186,7 @@ class ContinueAsGuestView(APIView):
     """Continue as guest endpoint"""
 
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [CloudflareScopedRateThrottle]
     throttle_scope = "guest"
 
     @require_turnstile

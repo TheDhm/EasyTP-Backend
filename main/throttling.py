@@ -1,4 +1,8 @@
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import (
+    AnonRateThrottle,
+    ScopedRateThrottle,
+    UserRateThrottle,
+)
 
 
 def _client_ip(request):
@@ -17,5 +21,10 @@ class CloudflareAnonRateThrottle(AnonRateThrottle):
 
 
 class CloudflareUserRateThrottle(UserRateThrottle):
+    def get_ident(self, request):
+        return _client_ip(request) or super().get_ident(request)
+
+
+class CloudflareScopedRateThrottle(ScopedRateThrottle):
     def get_ident(self, request):
         return _client_ip(request) or super().get_ident(request)
