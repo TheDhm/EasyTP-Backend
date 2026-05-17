@@ -63,6 +63,13 @@ def create_ingress(pod_name, app_name, user_hostname, domain="melekabderrahmane.
                 # For Cloudflare compatibility
                 "nginx.ingress.kubernetes.io/use-forwarded-headers": "true",
                 "nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
+                # Cloudflare Authenticated Origin Pulls (mTLS second gate):
+                # require CF's client cert at the TLS handshake. TLSOption +
+                # CA Secret live in EasyTP-Infra apps/user-apps/. Without this
+                # annotation, the ingress would skip the AOP gate and rely
+                # solely on the IPAllowList middleware on Traefik's default
+                # router.
+                "traefik.ingress.kubernetes.io/router.tls.options": "apps-require-cf-client-cert@kubernetescrd",
                 # For noVNC WebSocket support with Cloudflare
                 "nginx.ingress.kubernetes.io/configuration-snippet": """
                     proxy_set_header Upgrade $http_upgrade;
