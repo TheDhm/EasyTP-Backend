@@ -108,6 +108,7 @@ class UserActivitySerializer(serializers.ModelSerializer):
             "activity_display",
             "timestamp",
             "ip_address",
+            "country",
             "user_agent",
             "details",
         ]

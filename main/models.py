@@ -307,6 +307,7 @@ class UserActivity(models.Model):
     activity_type = models.CharField(max_length=20, choices=ACTIVITY_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+    country = models.CharField(max_length=2, null=True, blank=True)
     user_agent = models.TextField(null=True, blank=True)
     details = models.JSONField(default=dict, blank=True)  # Store additional context
 

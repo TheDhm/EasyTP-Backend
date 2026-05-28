@@ -4,7 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import AccessGroup, App, DefaultUser, UserActivity, UsersFromCSV
+from .models import AccessGroup, App, DefaultUser, UsersFromCSV
 
 
 class UsersFromCSVForm(forms.ModelForm):
@@ -176,9 +176,8 @@ class ActivityFilterForm(forms.Form):
         queryset=get_user_model().objects.all(), required=False, empty_label="All Users"
     )
 
-    activity_type = forms.ChoiceField(
-        choices=[("", "All Activities")] + UserActivity.ACTIVITY_CHOICES, required=False
-    )
+    # Comma-separated list of activity types; handled directly in the view.
+    activity_type = forms.CharField(required=False)
 
     start_date = forms.DateTimeField(
         required=False, widget=forms.DateTimeInput(attrs={"type": "datetime-local"})

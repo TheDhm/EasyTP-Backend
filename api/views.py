@@ -826,11 +826,6 @@ class UserActivitiesView(APIView):
             if filter_form.cleaned_data.get("user"):
                 activities = activities.filter(user=filter_form.cleaned_data["user"])
 
-            if filter_form.cleaned_data.get("activity_type"):
-                activities = activities.filter(
-                    activity_type=filter_form.cleaned_data["activity_type"]
-                )
-
             if filter_form.cleaned_data.get("start_date"):
                 activities = activities.filter(
                     timestamp__gte=filter_form.cleaned_data["start_date"]
@@ -839,6 +834,11 @@ class UserActivitiesView(APIView):
             if filter_form.cleaned_data.get("end_date"):
                 activities = activities.filter(timestamp__lte=filter_form.cleaned_data["end_date"])
 
+        # Activity type filter (comma-separated, supports multiple selections)
+        activity_types = [t for t in request.GET.get("activity_type", "").split(",") if t]
+        if activity_types:
+            activities = activities.filter(activity_type__in=activity_types)
+
         # Search functionality
         search_query = request.GET.get("search", "")
         if search_query:
@@ -846,6 +846,7 @@ class UserActivitiesView(APIView):
                 Q(user__username__icontains=search_query)
                 | Q(user__email__icontains=search_query)
                 | Q(ip_address__icontains=search_query)
+                | Q(country__icontains=search_query)
             )
 
         # Pagination

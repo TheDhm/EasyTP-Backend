@@ -88,6 +88,11 @@ class ActivityLogger:
         return request.META.get("HTTP_USER_AGENT", "")
 
     @staticmethod
+    def get_country(request):
+        """Get ISO country code from Cloudflare's CF-IPCountry header"""
+        return request.META.get("HTTP_CF_IPCOUNTRY")
+
+    @staticmethod
     def log_activity(user, activity_type, request=None, details=None):
         """
         Log user activity
@@ -115,6 +120,7 @@ class ActivityLogger:
 
             if request:
                 activity_data["ip_address"] = ActivityLogger.get_client_ip(request)
+                activity_data["country"] = ActivityLogger.get_country(request)
                 activity_data["user_agent"] = ActivityLogger.get_user_agent(request)
 
             UserActivity.objects.create(**activity_data)
