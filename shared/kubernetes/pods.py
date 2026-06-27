@@ -301,6 +301,10 @@ def display_apps(apps, user):
 
         data[app.name] = {
             "vnc_pass": vnc_pass_hash,
+            # WebRTC (Selkies) basic-auth username = the pod owner's username (matches
+            # SELKIES_BASIC_AUTH_USER injected in deploy_app); shown in the UI credentials box.
+            "vnc_user": user.username,
+            "app_type": app.app_type,
             "deployment_status": deployment_status,
             "novnc_url": novnc_url,
             "is_deployed": pod.is_deployed,

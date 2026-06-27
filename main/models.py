@@ -56,9 +56,26 @@ class AccessGroup(models.Model):
 
 
 class App(models.Model):
+    NOVNC = "novnc"
+    WEBRTC = "webrtc"
+    APP_TYPES = [
+        (NOVNC, "noVNC"),
+        (WEBRTC, "WebRTC (Selkies)"),
+    ]
+
     name = models.CharField(max_length=50, blank=False, unique=True)
     group = models.ManyToManyField(AccessGroup, related_name="apps", blank=True)
     image = models.CharField(max_length=100)
+    app_type = models.CharField(
+        max_length=10,
+        choices=APP_TYPES,
+        default=NOVNC,
+        help_text=_("Streaming type: noVNC web page or self-hosted WebRTC (Selkies) UI"),
+    )
+    session_duration_minutes = models.PositiveSmallIntegerField(
+        default=5,
+        help_text=_("Minutes before the session is auto-stopped/cleaned up."),
+    )
 
     def __str__(self):
         return f"{self.name}"

@@ -353,6 +353,7 @@ class StartPodView(APIView):
                 vnc_password=hashlib.md5(pod.pod_vnc_password.encode("utf-8")).hexdigest(),
                 user_hostname=cleaned_username,
                 readonly=readonly_volume,
+                app_type=app.app_type,
             )
 
             pod.is_deployed = True
@@ -373,8 +374,12 @@ class StartPodView(APIView):
             # Log activity
             ActivityLogger.log_pod_start(target_user, app_name, pod.pod_name, request)
 
-            # Schedule cleanup job (5 minutes default)
-            job_name = create_cleanup_job(pod.pod_name, app_name.lower())
+            # Schedule cleanup job (per-app session duration)
+            job_name = create_cleanup_job(
+                pod.pod_name,
+                app_name.lower(),
+                delay_seconds=app.session_duration_minutes * 60,
+            )
             pod.cleanup_job_name = job_name
             pod.save(update_fields=["cleanup_job_name"])
 

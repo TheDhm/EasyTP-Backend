@@ -102,8 +102,11 @@ class AccessGroupAdmin(admin.ModelAdmin):
 class AppAdmin(admin.ModelAdmin):
     list_display = (
         "name",
+        "app_type",
+        "session_duration_minutes",
         "groups",
     )
+    list_editable = ("app_type", "session_duration_minutes")
     form = CustomAppForm
 
 

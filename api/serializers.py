@@ -44,7 +44,7 @@ class AppSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = App
-        fields = ["id", "name", "image", "groups"]
+        fields = ["id", "name", "image", "app_type", "groups"]
 
 
 class PodSerializer(serializers.ModelSerializer):

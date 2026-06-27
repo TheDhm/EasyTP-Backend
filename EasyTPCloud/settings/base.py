@@ -30,6 +30,18 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 # Default is Cloudflare's "always passes" test secret key for dev
 TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY", "1x0000000000000000000000000000000AA")
 
+# Cloudflare Realtime TURN (WebRTC media relay for Selkies/webrtc apps).
+# Short-lived credentials are minted server-side per deploy using a "TURN key"
+# (KEY_ID + API token) created in the Cloudflare Realtime dashboard. Unset in
+# dev → webrtc apps deploy without TURN (graceful degradation; stream won't relay).
+CLOUDFLARE_TURN_KEY_ID = os.environ.get("CLOUDFLARE_TURN_KEY_ID", "")
+CLOUDFLARE_TURN_API_TOKEN = os.environ.get("CLOUDFLARE_TURN_API_TOKEN", "")
+
+# Container registry for user-app images. Always prefixed onto app images so we
+# never accidentally pull a bare name from Docker Hub. Prod overrides via the
+# django-config ConfigMap; the default matches it for local runs.
+REGISTRY_URL = os.environ.get("REGISTRY_URL", "registry.melekabderrahmane.com")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 
 

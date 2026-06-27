@@ -2,8 +2,11 @@
 
 import os
 
+from django.conf import settings
 from kubernetes import client
 from kubernetes.client.rest import ApiException
+
+from main.utils.cloudflare_turn import generate_turn_credentials
 
 from .config import load_k8s_config
 
@@ -138,16 +141,132 @@ def deploy_app(
     vnc_password,
     user_hostname,
     readonly=False,
+    app_type="novnc",
     *args,
     **kwargs,
 ):
-    """Deploy a pod with the specified application."""
+    """Deploy a pod with the specified application.
+
+    ``app_type`` selects the container shape:
+    - ``"novnc"`` (default): the original noVNC layout, injecting ``VNC_PW``.
+    - ``"webrtc"``: a Selkies/WebRTC app that serves its own UI on port 8080. It needs
+      Selkies stream-tuning env, HTTP basic auth (reusing the per-pod password), more CPU
+      for software x264 encoding, a tmpfs ``/dev/shm`` for Chromium, and a writable saves dir.
+    Service + Ingress are shared and unchanged (Selkies also listens on 8080).
+    """
     load_k8s_config()
 
     apps_api = client.AppsV1Api()
     user_space = username
 
     user_hostname = user_hostname.replace("_", "-")  # "_" not allowed in kubernetes hostname
+
+    # Always pull from our registry; never fall back to a bare (Docker Hub) name.
+    full_image = f"{settings.REGISTRY_URL}/{image}"
+
+    # --- Per-type container configuration -------------------------------------------------
+    volumes = [
+        {
+            "name": "nfs-kube",
+            "hostPath": {
+                "path": "/opt/django-shared/USERDATA",
+                "type": "DirectoryOrCreate",
+            },
+        },
+        {
+            "name": "nfs-kube-readonly",
+            "hostPath": {
+                "path": "/opt/django-shared/READONLY",
+                "type": "DirectoryOrCreate",
+            },
+        },
+    ]
+
+    if app_type == "webrtc":
+        # Selkies streams its own WebRTC UI on 8080; protect it with HTTP basic auth using
+        # the same per-pod password the noVNC apps use as VNC_PW.
+        env = [
+            {"name": "USER_HOSTNAME", "value": user_hostname},
+            {"name": "SELKIES_ENCODER", "value": "x264enc"},
+            {"name": "SELKIES_FRAMERATE", "value": "30"},
+            {"name": "SELKIES_VIDEO_BITRATE", "value": "3000"},
+            {"name": "SELKIES_CONGESTION_CONTROL", "value": "true"},
+            {"name": "SELKIES_ENABLE_BASIC_AUTH", "value": "true"},
+            {"name": "SELKIES_BASIC_AUTH_USER", "value": username},
+            {"name": "SELKIES_BASIC_AUTH_PASSWORD", "value": vnc_password},
+        ]
+        # WebRTC media is peer-to-peer UDP and does NOT cross the ingress; behind the
+        # k3s pod NAT, ICE needs a TURN relay or the stream never starts. We use
+        # Cloudflare Realtime TURN (managed) so media rides Cloudflare's network and the
+        # node's public IP is never exposed: mint short-lived credentials per deploy and
+        # point Selkies at turn.cloudflare.com. selkies-gstreamer reads these SELKIES_TURN_*
+        # vars natively. Only injected when credentials are minted, so missing/failed CF
+        # config degrades gracefully instead of breaking the deploy.
+        turn_creds = generate_turn_credentials()
+        if turn_creds:
+            turn_username, turn_password = turn_creds
+            env += [
+                {"name": "SELKIES_TURN_HOST", "value": "turn.cloudflare.com"},
+                {"name": "SELKIES_TURN_PORT", "value": os.environ.get("SELKIES_TURN_PORT", "3478")},
+                {
+                    "name": "SELKIES_TURN_PROTOCOL",
+                    "value": os.environ.get("SELKIES_TURN_PROTOCOL", "udp"),
+                },
+                {"name": "SELKIES_TURN_USERNAME", "value": turn_username},
+                {"name": "SELKIES_TURN_PASSWORD", "value": turn_password},
+            ]
+        # Software x264 at 30fps is CPU-heavy; the noVNC 700m limit is far too low.
+        resources = {
+            "limits": {"ephemeral-storage": "200Mi", "cpu": "3", "memory": "2Gi"},
+            "requests": {"ephemeral-storage": "100Mi", "cpu": "1500m", "memory": "1Gi"},
+        }
+        # Chromium needs a large /dev/shm (mirrors compose shm_size: 512m).
+        volumes.append({"name": "dshm", "emptyDir": {"medium": "Memory", "sizeLimit": "512Mi"}})
+        volume_mounts = [
+            {"name": "dshm", "mountPath": "/dev/shm"},
+            # Persist player progress across pod recycles (compose ../data/saves bind mount).
+            # Same NFS dir is also visible under /data/myData/socialempires-saves below.
+            {
+                "name": "nfs-kube",
+                "mountPath": "/opt/socialemperors/saves",
+                "subPath": f"{user_space}/socialempires-saves",
+            },
+            # Mount the user's full storage like the noVNC apps so the in-container
+            # file manager (thunar) can browse it and open the save files.
+            {"name": "nfs-kube", "mountPath": "/data/myData", "subPath": user_space},
+            {
+                "name": "nfs-kube-readonly",
+                "mountPath": "/data/readonly",
+                "readOnly": readonly,
+            },
+        ]
+        security_context = {"allowPrivilegeEscalation": False}
+    else:
+        env = [
+            {"name": "VNC_PW", "value": vnc_password},
+            {"name": "USER_HOSTNAME", "value": user_hostname},
+        ]
+        resources = {
+            "limits": {"ephemeral-storage": "100Mi", "cpu": "700m", "memory": "512Mi"},
+            "requests": {"ephemeral-storage": "50Mi", "cpu": "600m", "memory": "400Mi"},
+        }
+        volume_mounts = [
+            {"name": "nfs-kube", "mountPath": "/data/myData", "subPath": user_space},
+            {"name": "nfs-kube-readonly", "mountPath": "/data/readonly", "readOnly": readonly},
+        ]
+        security_context = None
+
+    container = {
+        "name": app_name,
+        "image": full_image,
+        "imagePullPolicy": "IfNotPresent",
+        "ports": [{"containerPort": 8080}],
+        "resources": resources,
+        "env": env,
+        "volumeMounts": volume_mounts,
+    }
+    if security_context:
+        container["securityContext"] = security_context
 
     deployment = {
         "apiVersion": "apps/v1",
@@ -165,60 +284,8 @@ def deploy_app(
                 "metadata": {"labels": {"app": app_name, "appDep": pod_name}},
                 "spec": {
                     "hostname": user_hostname,
-                    "containers": [
-                        {
-                            "name": app_name,
-                            "image": f"{os.environ.get('REGISTRY_URL')}/{image}"
-                            if os.environ.get("REGISTRY_URL")
-                            else image,
-                            "imagePullPolicy": "IfNotPresent",
-                            "ports": [{"containerPort": 8080}],
-                            "resources": {
-                                "limits": {
-                                    "ephemeral-storage": "100Mi",
-                                    "cpu": "700m",
-                                    "memory": "512Mi",
-                                },
-                                "requests": {
-                                    "ephemeral-storage": "50Mi",
-                                    "cpu": "600m",
-                                    "memory": "400Mi",
-                                },
-                            },
-                            "env": [
-                                {"name": "VNC_PW", "value": vnc_password},
-                                {"name": "USER_HOSTNAME", "value": user_hostname},
-                            ],
-                            "volumeMounts": [
-                                {
-                                    "name": "nfs-kube",
-                                    "mountPath": "/data/myData",
-                                    "subPath": user_space,
-                                },
-                                {
-                                    "name": "nfs-kube-readonly",
-                                    "mountPath": "/data/readonly",
-                                    "readOnly": readonly,
-                                },
-                            ],
-                        }
-                    ],
-                    "volumes": [
-                        {
-                            "name": "nfs-kube",
-                            "hostPath": {
-                                "path": "/opt/django-shared/USERDATA",
-                                "type": "DirectoryOrCreate",
-                            },
-                        },
-                        {
-                            "name": "nfs-kube-readonly",
-                            "hostPath": {
-                                "path": "/opt/django-shared/READONLY",
-                                "type": "DirectoryOrCreate",
-                            },
-                        },
-                    ],
+                    "containers": [container],
+                    "volumes": volumes,
                     "imagePullSecrets": [{"name": "registry-pull-secret"}],
                 },
             },
