@@ -10,7 +10,7 @@ from .config import load_k8s_config
 
 logger = logging.getLogger(__name__)
 
-CLEANUP_IMAGE = "bitnami/kubectl:latest"
+CLEANUP_IMAGE = "alpine/k8s:1.32.2"  # same pinned image as the cf-ip-sync CronJob (EasyTP-Infra)
 NAMESPACE = "apps"
 
 

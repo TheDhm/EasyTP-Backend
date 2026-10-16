@@ -60,35 +60,12 @@ def create_ingress(pod_name, app_name, user_hostname, domain="melekabderrahmane.
             "namespace": "apps",
             "labels": {"ingressApp": pod_name},
             "annotations": {
-                "nginx.ingress.kubernetes.io/proxy-read-timeout": "3600",
-                "nginx.ingress.kubernetes.io/proxy-send-timeout": "3600",
-                "nginx.ingress.kubernetes.io/websocket-services": service_name,
-                # For Cloudflare compatibility
-                "nginx.ingress.kubernetes.io/use-forwarded-headers": "true",
-                "nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
-                # Cloudflare Authenticated Origin Pulls (mTLS second gate):
-                # require CF's client cert at the TLS handshake. TLSOption +
-                # CA Secret live in EasyTP-Infra apps/user-apps/. Without this
-                # annotation, the ingress would skip the AOP gate and rely
-                # solely on the IPAllowList middleware on Traefik's default
-                # router.
+                # Cloudflare Authenticated Origin Pulls (mTLS): require CF's
+                # client cert at the TLS handshake. TLSOption + CA Secret live
+                # in EasyTP-Infra apps/user-apps/. This is the only origin gate
+                # for user apps (no IPAllowList middleware on this router), and
+                # setting tls.options also makes the router HTTPS-only.
                 "traefik.ingress.kubernetes.io/router.tls.options": "apps-require-cf-client-cert@kubernetescrd",
-                # For noVNC WebSocket support with Cloudflare
-                "nginx.ingress.kubernetes.io/configuration-snippet": """
-                    proxy_set_header Upgrade $http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    # Handle Cloudflare headers
-                    proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;
-                    proxy_set_header CF-Ray $http_cf_ray;
-                    # Prevent browser caching of noVNC files (recommended by noVNC docs)
-                    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
-                    add_header Pragma "no-cache" always;
-                    add_header Expires "0" always;
-                """,
             },
         },
         "spec": {
@@ -277,7 +254,7 @@ def deploy_app(
         },
         "spec": {
             "selector": {
-                "matchLabels": {"app": app_name},
+                "matchLabels": {"app": app_name, "appDep": pod_name},
             },
             "replicas": 1,
             "template": {
