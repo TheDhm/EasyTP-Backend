@@ -1,15 +1,41 @@
 """Tests for webhook API endpoints."""
 
+import hashlib
+import hmac
+import json
 import os
+import time
 from unittest.mock import patch
 
 import pytest
 from rest_framework import status
 
+SECRET = "test-secret"
+URL = "/webhook/update-image/"
+
+
+def signed_post(client, data, secret=SECRET, timestamp=None, body=None):
+    """POST ``data`` as JSON with the HMAC headers CI sends (see .github/workflows/logisim.yml)."""
+    body = body if body is not None else json.dumps(data)
+    timestamp = str(int(time.time())) if timestamp is None else timestamp
+    sig = hmac.new(secret.encode(), f"{timestamp}.".encode() + body.encode(), hashlib.sha256)
+    return client.post(
+        URL,
+        json.dumps(data),
+        content_type="application/json",
+        HTTP_X_WEBHOOK_TIMESTAMP=timestamp,
+        HTTP_X_WEBHOOK_SIGNATURE=f"sha256={sig.hexdigest()}",
+    )
+
 
 @pytest.mark.django_db
 class TestUpdateAppImageView:
     """Tests for the CI webhook endpoint that updates app image tags."""
+
+    @pytest.fixture(autouse=True)
+    def webhook_secret(self):
+        with patch.dict(os.environ, {"WEBHOOK_SECRET": SECRET}):
+            yield
 
     @pytest.fixture
     def logisim_app(self, db):
@@ -22,98 +48,80 @@ class TestUpdateAppImageView:
         )
         return app
 
-    def test_unauthorized_without_secret(self, api_client, logisim_app):
-        """Test that requests without webhook secret header are rejected."""
-        with patch.dict(os.environ, {"WEBHOOK_SECRET": "required-secret"}):
-            data = {"app_name": "logisim", "image_tag": "abc123"}
-            response = api_client.post("/webhook/update-image/", data, format="json")
-            assert response.status_code == status.HTTP_401_UNAUTHORIZED
-            assert response.data["error"] == "Unauthorized"
+    def test_fails_closed_when_secret_unset(self, api_client, logisim_app):
+        """An unset/empty secret must reject everything, even a request signed with ""."""
+        with patch.dict(os.environ, {"WEBHOOK_SECRET": ""}):
+            response = signed_post(
+                api_client, {"app_name": "logisim", "image_tag": "abc123"}, secret=""
+            )
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        logisim_app.refresh_from_db()
+        assert logisim_app.image == "logisim:latest"
+
+    def test_unauthorized_without_signature(self, api_client, logisim_app):
+        data = {"app_name": "logisim", "image_tag": "abc123"}
+        response = api_client.post(URL, data, format="json")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.data["error"] == "Unauthorized"
 
     def test_unauthorized_with_wrong_secret(self, api_client, logisim_app):
-        """Test that requests with wrong webhook secret are rejected."""
-        with patch.dict(os.environ, {"WEBHOOK_SECRET": "correct-secret"}):
-            data = {"app_name": "logisim", "image_tag": "abc123"}
-            response = api_client.post(
-                "/webhook/update-image/",
-                data,
-                format="json",
-                HTTP_X_WEBHOOK_SECRET="wrong-secret",
-            )
-            assert response.status_code == status.HTTP_401_UNAUTHORIZED
-            assert response.data["error"] == "Unauthorized"
+        data = {"app_name": "logisim", "image_tag": "abc123"}
+        response = signed_post(api_client, data, secret="wrong-secret")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_unauthorized_with_old_plain_secret_header(self, api_client, logisim_app):
+        """The previous scheme (secret sent in clear) is no longer accepted."""
+        data = {"app_name": "logisim", "image_tag": "abc123"}
+        response = api_client.post(URL, data, format="json", HTTP_X_WEBHOOK_SECRET=SECRET)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_unauthorized_with_tampered_body(self, api_client, logisim_app):
+        signed_body = json.dumps({"app_name": "logisim", "image_tag": "abc123"})
+        response = signed_post(
+            api_client, {"app_name": "logisim", "image_tag": "evil"}, body=signed_body
+        )
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_unauthorized_with_stale_timestamp(self, api_client, logisim_app):
+        data = {"app_name": "logisim", "image_tag": "abc123"}
+        response = signed_post(api_client, data, timestamp=str(int(time.time()) - 600))
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_unauthorized_with_non_numeric_timestamp(self, api_client, logisim_app):
+        data = {"app_name": "logisim", "image_tag": "abc123"}
+        response = signed_post(api_client, data, timestamp="soon")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_missing_app_name(self, api_client, logisim_app):
-        """Test that requests without app_name are rejected."""
-        with patch.dict(os.environ, {"WEBHOOK_SECRET": "test-secret"}):
-            data = {"image_tag": "abc123"}
-            response = api_client.post(
-                "/webhook/update-image/",
-                data,
-                format="json",
-                HTTP_X_WEBHOOK_SECRET="test-secret",
-            )
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
-            assert response.data["error"] == "Missing app_name or image_tag"
+        response = signed_post(api_client, {"image_tag": "abc123"})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["error"] == "Missing app_name or image_tag"
 
     def test_missing_image_tag(self, api_client, logisim_app):
-        """Test that requests without image_tag are rejected."""
-        with patch.dict(os.environ, {"WEBHOOK_SECRET": "test-secret"}):
-            data = {"app_name": "logisim"}
-            response = api_client.post(
-                "/webhook/update-image/",
-                data,
-                format="json",
-                HTTP_X_WEBHOOK_SECRET="test-secret",
-            )
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
-            assert response.data["error"] == "Missing app_name or image_tag"
+        response = signed_post(api_client, {"app_name": "logisim"})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["error"] == "Missing app_name or image_tag"
+
+    @pytest.mark.parametrize("tag", ["../x", "a b", "a:b", "-lead", "x" * 129, 123])
+    def test_invalid_image_tag(self, api_client, logisim_app, tag):
+        response = signed_post(api_client, {"app_name": "logisim", "image_tag": tag})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        logisim_app.refresh_from_db()
+        assert logisim_app.image == "logisim:latest"
 
     def test_app_not_found(self, api_client):
-        """Test that requests for non-existent apps return 404."""
-        with patch.dict(os.environ, {"WEBHOOK_SECRET": "test-secret"}):
-            data = {"app_name": "nonexistent", "image_tag": "abc123"}
-            response = api_client.post(
-                "/webhook/update-image/",
-                data,
-                format="json",
-                HTTP_X_WEBHOOK_SECRET="test-secret",
-            )
-            assert response.status_code == status.HTTP_404_NOT_FOUND
-            assert response.data["error"] == "App not found"
+        response = signed_post(api_client, {"app_name": "nonexistent", "image_tag": "abc123"})
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.data["error"] == "App not found"
 
     def test_successful_update(self, api_client, logisim_app):
-        """Test successful image tag update."""
+        # Same tag shape CI produces: YYYYmmdd-HHMMSS-<sha7>
+        response = signed_post(
+            api_client, {"app_name": "logisim", "image_tag": "20261016-142233-3addfac"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["status"] == "updated"
+        assert response.data["image"] == "logisim:20261016-142233-3addfac"
 
-        with patch.dict(os.environ, {"WEBHOOK_SECRET": "test-secret"}):
-            data = {"app_name": "logisim", "image_tag": "abc123def456"}
-            response = api_client.post(
-                "/webhook/update-image/",
-                data,
-                format="json",
-                HTTP_X_WEBHOOK_SECRET="test-secret",
-            )
-            assert response.status_code == status.HTTP_200_OK
-            assert response.data["status"] == "updated"
-            assert response.data["image"] == "logisim:abc123def456"
-
-            # Verify the app was actually updated in the database
-            logisim_app.refresh_from_db()
-            assert logisim_app.image == "logisim:abc123def456"
-
-    def test_update_preserves_app_name_in_image(self, api_client, logisim_app):
-        """Test that the image tag is formatted as app_name:tag."""
-
-        with patch.dict(os.environ, {"WEBHOOK_SECRET": "test-secret"}):
-            data = {"app_name": "logisim", "image_tag": "sha256abcdef"}
-            response = api_client.post(
-                "/webhook/update-image/",
-                data,
-                format="json",
-                HTTP_X_WEBHOOK_SECRET="test-secret",
-            )
-            assert response.status_code == status.HTTP_200_OK
-
-            # Verify the format is app_name:tag
-            logisim_app.refresh_from_db()
-            assert logisim_app.image == "logisim:sha256abcdef"
+        logisim_app.refresh_from_db()
+        assert logisim_app.image == "logisim:20261016-142233-3addfac"

@@ -1,7 +1,10 @@
 import base64
 import binascii
 import hashlib
+import hmac
 import os
+import re
+import time
 import uuid
 from datetime import timedelta
 
@@ -892,15 +895,40 @@ class UserActivitiesView(APIView):
         )
 
 
+# Docker tag grammar: https://docs.docker.com/reference/cli/docker/image/tag/
+IMAGE_TAG_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}")
+WEBHOOK_MAX_SKEW_SECONDS = 300
+
+
 class UpdateAppImageView(APIView):
-    """CI webhook to update app image tag after build."""
+    """CI webhook to update app image tag after build.
+
+    Authenticated with HMAC-SHA256 over "<timestamp>.<raw body>" keyed by WEBHOOK_SECRET:
+    headers ``X-Webhook-Timestamp: <unix seconds>`` and ``X-Webhook-Signature: sha256=<hex>``.
+    The secret never travels on the wire, and the timestamp bounds replays to a few minutes.
+    """
 
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Verify webhook secret
-        secret = request.headers.get("X-Webhook-Secret")
-        if secret != os.environ.get("WEBHOOK_SECRET"):
+        secret = os.environ.get("WEBHOOK_SECRET")
+        if not secret:
+            # Fail closed: an unset secret must not turn the endpoint into an open one.
+            return Response(
+                {"error": "Webhook not configured"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        timestamp = request.headers.get("X-Webhook-Timestamp", "")
+        signature = request.headers.get("X-Webhook-Signature", "")
+        # Read the raw body before request.data so we verify exactly the bytes that were signed.
+        expected = hmac.new(
+            secret.encode(), timestamp.encode() + b"." + request.body, hashlib.sha256
+        ).hexdigest()
+        if not (
+            timestamp.isdigit()
+            and abs(time.time() - int(timestamp)) <= WEBHOOK_MAX_SKEW_SECONDS
+            and hmac.compare_digest(signature, f"sha256={expected}")
+        ):
             return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
 
         app_name = request.data.get("app_name")
@@ -910,6 +938,8 @@ class UpdateAppImageView(APIView):
             return Response(
                 {"error": "Missing app_name or image_tag"}, status=status.HTTP_400_BAD_REQUEST
             )
+        if not isinstance(image_tag, str) or not IMAGE_TAG_RE.fullmatch(image_tag):
+            return Response({"error": "Invalid image_tag"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             app = App.objects.get(name=app_name)

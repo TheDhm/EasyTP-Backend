@@ -58,8 +58,15 @@ jobs:
         env:
           WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
           API_URL: ${{ vars.DJANGO_API_URL }}
+          IMAGE_TAG: ${{ steps.build_tag.outputs.tag }}
         run: |
-          curl -X POST "${API_URL}/webhook/update-image/" \
+          # HMAC-SHA256 over "<timestamp>.<body>" (verified by UpdateAppImageView);
+          # the secret itself never leaves the runner.
+          body=$(jq -nc --arg tag "$IMAGE_TAG" '{app_name: "LOGISIM", image_tag: $tag}')
+          ts=$(date +%s)
+          sig=$(printf '%s.%s' "$ts" "$body" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -r | cut -d' ' -f1)
+          curl --fail-with-body -sS -X POST "${API_URL}/webhook/update-image/" \
             -H "Content-Type: application/json" \
-            -H "X-Webhook-Secret: ${WEBHOOK_SECRET}" \
-            -d "{\"app_name\": \"LOGISIM\", \"image_tag\": \"${{ steps.build_tag.outputs.tag }}\"}"
+            -H "X-Webhook-Timestamp: ${ts}" \
+            -H "X-Webhook-Signature: sha256=${sig}" \
+            --data "$body"
