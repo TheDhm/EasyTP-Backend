@@ -66,6 +66,10 @@ def create_ingress(pod_name, app_name, user_hostname, domain="melekabderrahmane.
                 # for user apps (no IPAllowList middleware on this router), and
                 # setting tls.options also makes the router HTTPS-only.
                 "traefik.ingress.kubernetes.io/router.tls.options": "apps-require-cf-client-cert@kubernetescrd",
+                # no-cache response headers for noVNC (Middleware in EasyTP-Infra
+                # apps/user-apps/). WebSockets, X-Forwarded-*/X-Real-Ip and
+                # Cloudflare headers need nothing: Traefik handles them natively.
+                "traefik.ingress.kubernetes.io/router.middlewares": "apps-no-cache@kubernetescrd",
             },
         },
         "spec": {
