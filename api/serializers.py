@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -131,7 +133,6 @@ class SignupSerializer(serializers.ModelSerializer):
             "password_confirm",
             "first_name",
             "last_name",
-            "role",
         ]
         extra_kwargs = {
             "password": {"write_only": True},
@@ -205,10 +206,11 @@ class SignupSerializer(serializers.ModelSerializer):
         if value.lower() in [name.lower() for name in reserved_usernames]:
             raise serializers.ValidationError(f"Username '{value}' is reserved and cannot be used.")
 
-        # Check for basic format requirements
-        if not value.replace("-", "").replace("_", "").isalnum():
+        # Usernames become DNS labels (lab hostnames) and directory names: ASCII only.
+        if not re.fullmatch(r"[a-z0-9]([a-z0-9_-]*[a-z0-9])?", value, re.IGNORECASE):
             raise serializers.ValidationError(
-                "Username can only contain letters, numbers, hyphens, and underscores."
+                "Username can only contain letters, numbers, hyphens, and underscores, "
+                "and must start and end with a letter or number."
             )
 
         # Check minimum length
@@ -219,8 +221,10 @@ class SignupSerializer(serializers.ModelSerializer):
         if len(value) > 30:
             raise serializers.ValidationError("Username must be no more than 30 characters long.")
 
-        # Check if username already exists
-        if DefaultUser.objects.filter(username__iexact=value).exists():
+        # Uniqueness on the lab hostname form ("_" and "." map to "-"), so a new "a-b"
+        # cannot share an ingress host with an existing "a_b".
+        pattern = "^" + re.sub(r"[-_]", "[-_.]", value) + "$"
+        if DefaultUser.objects.filter(username__iregex=pattern).exists():
             raise serializers.ValidationError("A user with this username already exists.")
 
         return value
@@ -234,24 +238,11 @@ class SignupSerializer(serializers.ModelSerializer):
         validated_data.pop("password_confirm", None)
         password = validated_data.pop("password")
 
-        # Assign default group based on role
-        role = validated_data.get("role", DefaultUser.STUDENT)
-
-        # Import AccessGroup here to avoid circular imports
-        from main.models import AccessGroup
-
-        if role == DefaultUser.STUDENT:
-            # Students get assigned to Guest group by default (as per user's preference)
-            default_group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
-            validated_data["group"] = default_group
-
-        elif role == DefaultUser.GUEST:
-            # Guests should use the guest endpoint, but if they somehow get here, assign Guest group
-            default_group, _ = AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
-            validated_data["group"] = default_group
-        # ADMIN role is handled by the model's save() method
-
-        user = DefaultUser.objects.create_user(password=password, **validated_data)
+        # Self-signup is always a student in the Guest group; roles are granted by admins.
+        validated_data["group"], _ = AccessGroup.objects.get_or_create(name=AccessGroup.GUEST)
+        user = DefaultUser.objects.create_user(
+            password=password, role=DefaultUser.STUDENT, **validated_data
+        )
         return user
 
 

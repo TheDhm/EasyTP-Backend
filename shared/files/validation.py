@@ -45,7 +45,7 @@ def safe_base64_decode(encoded_path):
 
         decoded = base64.urlsafe_b64decode(encoded_path).decode("utf-8")
         return decoded
-    except (binascii.Error, UnicodeDecodeError, ValueError):
+    except binascii.Error, UnicodeDecodeError, ValueError:
         raise SuspiciousOperation("Invalid path encoding")
 
 

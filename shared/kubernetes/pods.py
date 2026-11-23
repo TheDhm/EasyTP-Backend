@@ -217,9 +217,6 @@ def display_apps(apps, user):
     # Import here to avoid circular imports
     from main.models import Pod
 
-    print("Displaying apps for user:", user)
-    print("Apps to display:", apps)
-
     data = dict()
     for app in apps:
         novnc_url = None

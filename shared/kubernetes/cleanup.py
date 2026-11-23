@@ -10,7 +10,7 @@ from .config import load_k8s_config
 
 logger = logging.getLogger(__name__)
 
-CLEANUP_IMAGE = "alpine/k8s:1.32.2"  # same pinned image as the cf-ip-sync CronJob (EasyTP-Infra)
+CLEANUP_IMAGE = "alpine/k8s:1.32.2@sha256:15cfdf84d6de3559bc54d7479eb4e8aadbf71f6d7f08782cb1e91f3446f4b2d8"  # same pinned image as the cf-ip-sync CronJob (EasyTP-Infra)
 NAMESPACE = "apps"
 
 
@@ -60,6 +60,9 @@ def create_cleanup_job(pod_name: str, app_name: str, delay_seconds: int = 300) -
             "ttlSecondsAfterFinished": 60,  # Auto-delete job 1 min after completion
             "backoffLimit": 1,
             "template": {
+                # Matched by the apps-namespace NetworkPolicy (EasyTP-Infra) that lets only
+                # cleanup pods reach the API server.
+                "metadata": {"labels": {"app": "cleanup-job"}},
                 "spec": {
                     "serviceAccountName": "cleanup-job-account",
                     "restartPolicy": "Never",

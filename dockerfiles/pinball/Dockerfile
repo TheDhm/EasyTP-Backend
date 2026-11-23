@@ -35,9 +35,12 @@ RUN mkdir -p /pinball /data/myData /data/readonly /home/.vnc /home/wallpaper /us
     useradd --home-dir /data --shell /bin/bash --uid 1000 --gid 1000 app
 
 # Build SpaceCadetPinball from source
-RUN cd /tmp && \
-    git clone --depth 1 https://github.com/k4zmu2a/SpaceCadetPinball.git && \
-    cd SpaceCadetPinball && mkdir build && cd build && \
+# Pinned commit: an upstream push must not silently change what we ship.
+RUN mkdir /tmp/SpaceCadetPinball && cd /tmp/SpaceCadetPinball && \
+    git init -q && \
+    git fetch -q --depth 1 https://github.com/k4zmu2a/SpaceCadetPinball.git cb9b7b886244a27773f66b0b19fdc2998392565e && \
+    git checkout -q FETCH_HEAD && \
+    mkdir build && cd build && \
     cmake .. && make -j$(nproc) && \
     cp /tmp/SpaceCadetPinball/bin/SpaceCadetPinball /pinball/ && \
     rm -rf /tmp/SpaceCadetPinball
@@ -50,6 +53,7 @@ RUN cd /tmp && \
 
 # Download and install noVNC 1.6.0
 RUN wget -O /tmp/novnc.tar.gz https://github.com/novnc/noVNC/archive/refs/tags/v1.6.0.tar.gz && \
+    echo "5066103959ef4e9b10f37e5a148627360dd8414e4cf8a7db92bdbd022e728aaa  /tmp/novnc.tar.gz" | sha256sum -c - && \
     mkdir -p /usr/share/novnc && \
     tar -xzf /tmp/novnc.tar.gz -C /usr/share/novnc --strip-components=1 && \
     rm /tmp/novnc.tar.gz

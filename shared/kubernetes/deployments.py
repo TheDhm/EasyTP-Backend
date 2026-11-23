@@ -1,5 +1,6 @@
 """Kubernetes deployment, service, and ingress operations."""
 
+import logging
 import os
 
 from django.conf import settings
@@ -9,6 +10,8 @@ from kubernetes.client.rest import ApiException
 from main.utils.cloudflare_turn import generate_turn_credentials
 
 from .config import load_k8s_config
+
+logger = logging.getLogger(__name__)
 
 
 def create_service(pod_name, app_name):
@@ -39,7 +42,7 @@ def create_service(pod_name, app_name):
             namespace="apps", body=manifest, pretty="true"
         )
     except ApiException as e:
-        print("Exception when calling CoreV1Api->create_namespaced_service: %s\n" % e)
+        logger.error("create_namespaced_service failed: %s", e)
 
 
 def create_ingress(pod_name, app_name, user_hostname, domain="melekabderrahmane.com"):
@@ -96,7 +99,7 @@ def create_ingress(pod_name, app_name, user_hostname, domain="melekabderrahmane.
         _api_response = networking_api.create_namespaced_ingress(namespace="apps", body=manifest)
         return host  # Return the host URL
     except ApiException as e:
-        print("Exception when calling NetworkingV1Api->create_namespaced_ingress: %s\n" % e)
+        logger.error("create_namespaced_ingress failed: %s", e)
         return None
 
 
@@ -111,7 +114,7 @@ def delete_ingress(pod_name, app_name):
             name=f"{app_name}-ingress-{pod_name}", namespace="apps"
         )
     except ApiException as e:
-        print("Exception when deleting ingress: %s\n" % e)
+        logger.error("delete_namespaced_ingress failed: %s", e)
 
 
 def deploy_app(
@@ -134,6 +137,9 @@ def deploy_app(
       Selkies stream-tuning env, HTTP basic auth (reusing the per-pod password), more CPU
       for software x264 encoding, a tmpfs ``/dev/shm`` for Chromium, and a writable saves dir.
     Service + Ingress are shared and unchanged (Selkies also listens on 8080).
+
+    Returns True if the Deployment was created, False if the API refused it
+    (typically because it already exists).
     """
     load_k8s_config()
 
@@ -221,7 +227,6 @@ def deploy_app(
                 "readOnly": readonly,
             },
         ]
-        security_context = {"allowPrivilegeEscalation": False}
     else:
         env = [
             {"name": "VNC_PW", "value": vnc_password},
@@ -235,7 +240,6 @@ def deploy_app(
             {"name": "nfs-kube", "mountPath": "/data/myData", "subPath": user_space},
             {"name": "nfs-kube-readonly", "mountPath": "/data/readonly", "readOnly": readonly},
         ]
-        security_context = None
 
     container = {
         "name": app_name,
@@ -245,9 +249,10 @@ def deploy_app(
         "resources": resources,
         "env": env,
         "volumeMounts": volume_mounts,
+        # noVNC images start as root and drop to uid 1000 via gosu, which works under
+        # no-new-privs; nothing in a lab needs setuid escalation.
+        "securityContext": {"allowPrivilegeEscalation": False},
     }
-    if security_context:
-        container["securityContext"] = security_context
 
     deployment = {
         "apiVersion": "apps/v1",
@@ -265,6 +270,10 @@ def deploy_app(
                 "metadata": {"labels": {"app": app_name, "appDep": pod_name}},
                 "spec": {
                     "hostname": user_hostname,
+                    # Labs run untrusted user sessions: no API token, no service env vars.
+                    "automountServiceAccountToken": False,
+                    "enableServiceLinks": False,
+                    "securityContext": {"seccompProfile": {"type": "RuntimeDefault"}},
                     "containers": [container],
                     "volumes": volumes,
                     "imagePullSecrets": [{"name": "registry-pull-secret"}],
@@ -275,5 +284,7 @@ def deploy_app(
 
     try:
         apps_api.create_namespaced_deployment(namespace="apps", body=deployment)
+        return True
     except ApiException as e:
-        print("error while deploying: ", e)
+        logger.error("create_namespaced_deployment failed: %s", e)
+        return False

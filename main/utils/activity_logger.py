@@ -1,6 +1,9 @@
 import ipaddress
+import logging
 
 from main.models import UserActivity
+
+logger = logging.getLogger(__name__)
 
 
 class ActivityLogger:
@@ -17,21 +20,6 @@ class ActivityLogger:
             "REMOTE_ADDR",  # Direct connection (fallback)
         ]
 
-        # DEBUG: Log all available headers for troubleshooting
-        debug_info = {}
-        for header in ip_headers:
-            value = request.META.get(header)
-            if value:
-                debug_info[header] = value
-
-        # Also check for any other IP-related headers
-        for key, value in request.META.items():
-            if "IP" in key.upper() or "FORWARD" in key.upper() or "CLIENT" in key.upper():
-                if key not in debug_info:
-                    debug_info[key] = value
-
-        print(f"DEBUG - Available IP headers: {debug_info}")
-
         for header in ip_headers:
             ip = request.META.get(header)
             if ip:
@@ -39,23 +27,16 @@ class ActivityLogger:
                 if "," in ip:
                     ip = ip.split(",")[0].strip()
 
-                print(f"DEBUG - Checking {header}: {ip}")
-
                 # For Cloudflare header, accept it even if it's IPv6
                 if header == "HTTP_CF_CONNECTING_IP":
-                    print(f"DEBUG - Using Cloudflare IP: {ip}")
                     return ip
 
                 # For other headers, prefer public IPs but accept private as backup
                 if ActivityLogger._is_valid_public_ip(ip):
-                    print(f"DEBUG - Using public IP from {header}: {ip}")
                     return ip
-                else:
-                    print(f"DEBUG - {header} has private/invalid IP: {ip}")
 
         # Fallback to REMOTE_ADDR even if it's private (for local development)
         fallback_ip = request.META.get("REMOTE_ADDR", "127.0.0.1")
-        print(f"DEBUG - Using fallback IP: {fallback_ip}")
         return fallback_ip
 
     @staticmethod
@@ -79,7 +60,7 @@ class ActivityLogger:
                     return True
 
             return is_public
-        except (ValueError, ipaddress.AddressValueError):
+        except ValueError, ipaddress.AddressValueError:
             return False
 
     @staticmethod
@@ -125,9 +106,9 @@ class ActivityLogger:
 
             UserActivity.objects.create(**activity_data)
 
-        except Exception as e:
+        except Exception:
             # Log the error but don't break the main functionality
-            print(f"Error logging activity: {e}")
+            logger.exception("Error logging activity")
 
     @staticmethod
     def log_login(user, request):

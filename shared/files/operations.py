@@ -77,11 +77,11 @@ def get_sub_files_secure(user_path, path, return_format="tuple"):
                     except OSError:
                         # Skip files we can't access
                         continue
-            except (UnicodeEncodeError, OSError):
+            except UnicodeEncodeError, OSError:
                 # Skip problematic files
                 continue
 
-    except (OSError, IOError):
+    except OSError, IOError:
         pass  # Return empty result if directory can't be accessed
 
     if return_format == "dict":
@@ -96,10 +96,10 @@ def save_file_secure(file_path, uploaded_file):
     os.makedirs(directory, exist_ok=True)
     os.chmod(directory, 0o775)  # Group-writable directories
 
-    # Write file in chunks to handle large files efficiently and securely
-    with open(file_path, "wb") as destination:
+    # O_EXCL | O_NOFOLLOW: never write through a symlink. Users control this directory
+    # from inside their lab pod and can plant links (even dangling ones) pointing outside it.
+    fd = os.open(file_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o664)
+    with os.fdopen(fd, "wb") as destination:
+        os.fchmod(fd, 0o664)  # group-readable for cross-pod access, regardless of umask
         for chunk in uploaded_file.chunks():
             destination.write(chunk)
-
-    # Set group-readable permissions for cross-pod access
-    os.chmod(file_path, 0o664)

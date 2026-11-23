@@ -166,6 +166,27 @@ class TestFileExplorerViewPOST:
                 uploaded_path = os.path.join(student_file_dir, response.data["filename"])
                 assert os.path.exists(uploaded_path)
 
+    def test_upload_does_not_write_through_symlink(
+        self, authenticated_student_client, student_user, student_file_dir, tmp_path
+    ):
+        """A dangling symlink planted in the user dir must not redirect the upload."""
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        os.symlink(outside / "planted.txt", os.path.join(student_file_dir, "planted.txt"))
+
+        with patch("api.views.FileExplorerView._get_user_path") as mock_path:
+            mock_path.return_value = (student_file_dir, False)
+            with patch("api.views.get_actual_storage_usage", return_value=0.0):
+                test_file = SimpleUploadedFile("planted.txt", b"pwn", content_type="text/plain")
+                response = authenticated_student_client.post(
+                    "/files/", {"file": test_file}, format="multipart"
+                )
+
+        assert list(outside.iterdir()) == []
+        # The upload itself still succeeds, under a non-colliding name
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["filename"] == "planted_1.txt"
+
     def test_upload_to_subdirectory(
         self, authenticated_student_client, student_user, student_file_dir
     ):
