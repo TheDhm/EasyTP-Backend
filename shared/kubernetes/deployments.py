@@ -152,21 +152,13 @@ def deploy_app(
     full_image = f"{settings.REGISTRY_URL}/{image}"
 
     # --- Per-type container configuration -------------------------------------------------
+    # Claims, not hostPath: same node directories (PVs in EasyTP-Infra
+    # apps/user-apps/storage.yaml), but with no hostPath in the pod spec the `apps`
+    # namespace can enforce Pod Security "baseline", so this service account can never
+    # be used to mount the node's filesystem.
     volumes = [
-        {
-            "name": "nfs-kube",
-            "hostPath": {
-                "path": "/opt/django-shared/USERDATA",
-                "type": "DirectoryOrCreate",
-            },
-        },
-        {
-            "name": "nfs-kube-readonly",
-            "hostPath": {
-                "path": "/opt/django-shared/READONLY",
-                "type": "DirectoryOrCreate",
-            },
-        },
+        {"name": "nfs-kube", "persistentVolumeClaim": {"claimName": "userdata"}},
+        {"name": "nfs-kube-readonly", "persistentVolumeClaim": {"claimName": "readonly"}},
     ]
 
     if app_type == "webrtc":
