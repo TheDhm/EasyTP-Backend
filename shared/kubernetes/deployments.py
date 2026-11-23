@@ -13,6 +13,9 @@ from .config import load_k8s_config
 
 logger = logging.getLogger(__name__)
 
+# Where the shared user storage is mounted in this (backend) container.
+USERDATA_ROOT = "/USERDATA"
+
 
 def create_service(pod_name, app_name):
     """Create a ClusterIP service for the pod."""
@@ -147,6 +150,15 @@ def deploy_app(
     user_space = username
 
     user_hostname = user_hostname.replace("_", "-")  # "_" not allowed in kubernetes hostname
+
+    # Create the user's directory ourselves, before the pod mounts it as a subPath.
+    # If it does not exist yet the kubelet creates it owned by root, and then neither
+    # the lab (uid 1000) nor this backend (uid 1000) can write to it: saving inside
+    # the lab and uploading from the site both fail with "permission denied".
+    try:
+        os.makedirs(os.path.join(USERDATA_ROOT, user_space), exist_ok=True)
+    except OSError as e:
+        logger.error("Could not create %s under %s: %s", user_space, USERDATA_ROOT, e)
 
     # Always pull from our registry; never fall back to a bare (Docker Hub) name.
     full_image = f"{settings.REGISTRY_URL}/{image}"

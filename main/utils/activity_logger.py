@@ -92,6 +92,11 @@ class ActivityLogger:
             elif user is None and details and details.get("username"):
                 username = details.get("username")  # Allow override via details
 
+            # A guest deleted earlier in this request (logout) is still on request.user
+            # but no longer in the database; keep the username, drop the reference.
+            if user is not None and user.pk is None:
+                user = None
+
             activity_data = {
                 "user": user,
                 "username": username,
