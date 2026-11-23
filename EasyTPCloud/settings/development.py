@@ -35,9 +35,6 @@ if "debug_toolbar" in INSTALLED_APPS:
     MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
     INTERNAL_IPS = ["127.0.0.1"]
 
-# Add admin localhost restriction middleware
-MIDDLEWARE += ["main.middleware.AdminLocalhostMiddleware"]
-
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
     "https://api.melekabderrahmane.com",

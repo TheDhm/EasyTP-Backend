@@ -170,6 +170,30 @@ class TestStartPodView:
         # Will fail at get_object_or_404 for Pod, not at permission level
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_teacher_cannot_target_admin(self, authenticated_teacher_client, admin_user, test_app):
+        """Teachers may act on students/guests only, never on admins or other teachers."""
+        response = authenticated_teacher_client.post(
+            f"/start/{test_app.name}/", {"user_id": admin_user.id}, format="json"
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_start_rotates_session_password(self, api_client, student_with_app_access, test_app):
+        """Each successful start gets a fresh lab password."""
+        api_client.force_authenticate(user=student_with_app_access)
+        pod = Pod.objects.get(pod_user=student_with_app_access, app_name=test_app.name)
+        old_password = pod.pod_vnc_password
+        with (
+            patch("api.views.deploy_app", return_value=True),
+            patch("api.views.create_service"),
+            patch("api.views.create_ingress", return_value="test.example.com"),
+            patch("api.views.create_cleanup_job", return_value="cleanup-job-123"),
+        ):
+            response = api_client.post(f"/start/{test_app.name}/")
+
+        assert response.status_code == status.HTTP_200_OK
+        pod.refresh_from_db()
+        assert pod.pod_vnc_password != old_password
+
     def test_student_with_access_can_start_pod(self, api_client, student_with_app_access, test_app):
         """Test student with group access can start pod (pod auto-created by signal)."""
         api_client.force_authenticate(user=student_with_app_access)
@@ -275,3 +299,12 @@ class TestDashboardView:
             assert response.status_code == status.HTTP_200_OK
             assert response.data["template_type"] == "admin"
             assert response.data["role"] == DefaultUser.ADMIN
+
+
+class TestUserActivitiesView:
+    """Tests for GET /usage_statistics/."""
+
+    @pytest.mark.parametrize("page_size", ["abc", "0", "-5", "999999"])
+    def test_page_size_is_clamped(self, authenticated_admin_client, page_size):
+        response = authenticated_admin_client.get(f"/usage_statistics/?page_size={page_size}")
+        assert response.status_code == status.HTTP_200_OK

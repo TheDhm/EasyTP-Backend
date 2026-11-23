@@ -1,9 +1,11 @@
 import ipaddress
+import logging
 
-from django.http import Http404
 from django.utils.deprecation import MiddlewareMixin
 
 from .utils.activity_logger import ActivityLogger
+
+logger = logging.getLogger(__name__)
 
 
 class VisitorLoggingMiddleware(MiddlewareMixin):
@@ -58,7 +60,7 @@ class VisitorLoggingMiddleware(MiddlewareMixin):
             for range_str in self.HEALTH_CHECK_IP_RANGES:
                 if client_ip in ipaddress.ip_network(range_str, strict=False):
                     return True
-        except (ValueError, ipaddress.AddressValueError):
+        except ValueError, ipaddress.AddressValueError:
             pass
 
         # Check user agent
@@ -92,75 +94,8 @@ class VisitorLoggingMiddleware(MiddlewareMixin):
         try:
             # Log the page view - at this point, DRF authentication is complete
             ActivityLogger.log_page_view(request)
-        except Exception as e:
+        except Exception:
             # Don't break the request if logging fails
-            print(f"Error logging page view: {e}")
+            logger.exception("Error logging page view")
 
         return response
-
-
-class AdminLocalhostMiddleware(MiddlewareMixin):
-    """
-    Middleware to restrict Django admin access to localhost only
-    """
-
-    def process_request(self, request):
-        """
-        Check if the request is for admin and if it's from localhost
-        """
-        print(f"Processing request for path: {request.path}")
-        # Only apply to admin paths
-        if request.path.startswith("/adminpanel/"):
-            # Get client IP
-            print("Checking client IP for admin access")
-            client_ip = self._get_client_ip(request)
-
-            # Check if it's localhost
-            if not self._is_localhost(client_ip):
-                raise Http404("Admin panel not found")
-
-        return None
-
-    def _get_client_ip(self, request):
-        """
-        Get the real client IP address, considering proxies
-        """
-        # Check for forwarded IPs (common with reverse proxies)
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            # Take the first IP in the chain
-            ip = x_forwarded_for.split(",")[0].strip()
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-
-        return ip
-
-    def _is_localhost(self, ip):
-        """
-        Check if the IP is localhost
-        """
-        if not ip:
-            return False
-
-        # Common localhost representations
-        localhost_ips = ["127.0.0.1", "::1", "localhost"]
-
-        # Check exact matches
-        if ip in localhost_ips:
-            return True
-
-        # Check if it's in loopback range
-        try:
-            import ipaddress
-
-            client_ip = ipaddress.ip_address(ip)
-            # IPv4 loopback range
-            if client_ip in ipaddress.ip_network("127.0.0.0/8"):
-                return True
-            # IPv6 loopback
-            if client_ip in ipaddress.ip_network("::1/128"):
-                return True
-        except (ValueError, ipaddress.AddressValueError):
-            pass
-
-        return False

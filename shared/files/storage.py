@@ -21,9 +21,9 @@ def get_actual_storage_usage(user_path):
                     # Only count regular files, not symlinks
                     if os.path.isfile(file_path) and not os.path.islink(file_path):
                         total_size += os.path.getsize(file_path)
-                except (OSError, IOError):
+                except OSError, IOError:
                     continue  # Skip files we can't access
-    except (OSError, IOError):
+    except OSError, IOError:
         pass
 
     return total_size / (1024 * 1024)  # Convert to MB

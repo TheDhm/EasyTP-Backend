@@ -11,21 +11,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        postgresql-client \
-        build-essential \
-        libpq-dev \
-        libxml2-dev \
-        libxslt1-dev \
-        libjpeg-dev \
-        zlib1g-dev \
-        curl \
-    && rm -rf /var/lib/apt/lists/*
+# No apt packages: every dependency ships a wheel (psycopg2-binary bundles libpq),
+# so the image carries no compiler or client tools for an attacker to reuse.
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install uv (pinned; bump deliberately)
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
 # Install Python dependencies
 COPY pyproject.toml uv.lock /app/

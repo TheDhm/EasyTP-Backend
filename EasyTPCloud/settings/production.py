@@ -2,20 +2,21 @@ import os
 
 from .base import *
 
+# Fail closed: base.py has dev fallbacks for these; production must never run on them.
+for _required in ("SECRET_KEY", "TURNSTILE_SECRET_KEY", "DB_PASSWORD"):
+    if not os.environ.get(_required):
+        raise RuntimeError(f"{_required} must be set in production")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
 # Configure this properly for production
 ALLOWED_HOSTS = [
-    "https://api.melekabderrahmane.com",
-    "https://easytp.melekabderrahmane.com",
-    "easytp.melekabderrahmane.com",
     "api.melekabderrahmane.com",
     "django-service",  # Kubernetes service name
     "django-service.django-app",  # Service with namespace
     "django-service.django-app.svc.cluster.local",
-    "localhost",
-    "195.201.32.187",
+    "localhost",  # kubelet probes send Host: localhost
 ]
 
 
@@ -61,7 +62,6 @@ SECURE_REFERRER_POLICY = "same-origin"
 CSRF_TRUSTED_ORIGINS = [
     "https://api.melekabderrahmane.com",
     "https://easytp.melekabderrahmane.com",
-    "https://195.201.32.187",
 ]
 
 # Logging configuration
@@ -109,6 +109,11 @@ CACHES = {
         "LOCATION": "redis://redis-service.django-app.svc.cluster.local:6379/0",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # None until the infra sets it, so this image works on both sides of that rollout.
+            "PASSWORD": os.environ.get("REDIS_PASSWORD"),
+            # JSON, not the default pickle: anyone who can write to Redis must not be able
+            # to make this process unpickle (= execute) their payload.
+            "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
             "CONNECTION_POOL_KWARGS": {
                 "max_connections": 20,
                 "retry_on_timeout": True,
@@ -117,7 +122,7 @@ CACHES = {
             "IGNORE_EXCEPTIONS": True,
         },
         "TIMEOUT": 300,  # 5 minutes
-        "KEY_PREFIX": "django_cache",
+        "KEY_PREFIX": "easytp_json",  # new prefix: never read old pickled entries
     }
 }
 
@@ -126,9 +131,6 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 3600  # 1 hour
 SESSION_SAVE_EVERY_REQUEST = False
-
-# Add admin localhost restriction middleware
-MIDDLEWARE += ["main.middleware.AdminLocalhostMiddleware"]
 
 
 # CORS Settings

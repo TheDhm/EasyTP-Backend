@@ -2,8 +2,10 @@ import base64
 import binascii
 import hashlib
 import hmac
+import logging
 import os
 import re
+import secrets
 import time
 import uuid
 from datetime import timedelta
@@ -20,6 +22,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -56,6 +59,32 @@ from .serializers import (
     UserActivitySerializer,
     UserSerializer,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _target_user(request):
+    """Resolve the optional ``user_id`` staff may act on; (user, None) or (None, error Response).
+
+    Admins may target anyone; teachers only students and guests, so a teacher cannot
+    start or stop sessions that mount another teacher's or an admin's storage.
+    """
+    user = request.user
+    user_id = request.data.get("user_id")
+    if not user_id or user.role in [DefaultUser.STUDENT, DefaultUser.GUEST]:
+        return user, None
+    try:
+        target = DefaultUser.objects.get(id=user_id)
+    except DefaultUser.DoesNotExist, ValueError, TypeError:
+        return None, Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    is_admin = user.role == DefaultUser.ADMIN or user.is_superuser
+    if (
+        not is_admin
+        and target != user
+        and target.role not in [DefaultUser.STUDENT, DefaultUser.GUEST]
+    ):
+        return None, Response({"error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+    return target, None
 
 
 class CustomTokenRefreshView(TokenRefreshView):
@@ -162,27 +191,26 @@ class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        try:
-            user = request.user
-            is_guest = user.is_guest()
+        user = request.user
 
-            # Log logout activity (before potential user deletion)
-            ActivityLogger.log_logout(user, request)
+        # Log logout activity (before potential user deletion)
+        ActivityLogger.log_logout(user, request)
 
-            # Blacklist the refresh token if provided
-            refresh_token = request.data.get("refresh_token")
-            if refresh_token:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
+        # Revoke the refresh token if provided. A bad/expired token is already useless,
+        # and must not stop the rest of the logout (guest deletion below).
+        refresh_token = request.data.get("refresh_token")
+        if refresh_token:
+            try:
+                RefreshToken(refresh_token).blacklist()
+            except TokenError:
+                pass
 
-            # Delete guest user (triggers post_delete signal for folder cleanup)
-            if is_guest:
-                user.delete()
-                return Response({"message": "Guest session ended"}, status=status.HTTP_200_OK)
+        # Delete guest user (triggers post_delete signal for folder cleanup)
+        if user.is_guest():
+            user.delete()
+            return Response({"message": "Guest session ended"}, status=status.HTTP_200_OK)
 
-            return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
 
 
 class ContinueAsGuestView(APIView):
@@ -226,8 +254,11 @@ class ContinueAsGuestView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Guest account creation failed")
+            return Response(
+                {"error": "Could not start a guest session"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class DashboardView(APIView):
@@ -314,9 +345,15 @@ class AppsView(APIView):
         try:
             apps_data = display_apps(apps, user)
             return Response({"apps": apps_data, "user_role": user.role, "authenticated": True})
-        except Exception as e:
+        except Exception:
+            logger.exception("Listing apps failed")
             return Response(
-                {"error": str(e), "apps": {}, "user_role": user.role, "authenticated": True},
+                {
+                    "error": "Could not load apps",
+                    "apps": {},
+                    "user_role": user.role,
+                    "authenticated": True,
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -327,17 +364,9 @@ class StartPodView(APIView):
     permission_classes = [IsAuthenticated, CanAccessApp]
 
     def post(self, request, app_name):
-        user = request.user
-        user_id = request.data.get("user_id")
-
-        # Handle user_id for admin/teacher roles
-        if user_id and user.role not in [DefaultUser.STUDENT, DefaultUser.GUEST]:
-            try:
-                target_user = DefaultUser.objects.get(id=user_id)
-            except DefaultUser.DoesNotExist:
-                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            target_user = user
+        target_user, error = _target_user(request)
+        if error:
+            return error
 
         # Get app and pod - let Http404 propagate naturally
         app = get_object_or_404(App, name=app_name)
@@ -347,17 +376,27 @@ class StartPodView(APIView):
             cleaned_username = target_user.username.replace("_", "-").replace(".", "-").lower()
             readonly_volume = target_user.role in [DefaultUser.STUDENT, DefaultUser.GUEST]
 
+            # New session password on every start, so a leaked one dies with the session.
+            # Only kept if the deployment was actually created: an already-running lab
+            # still has the old one.
+            # ponytail: VncAuth only uses the first 8 chars of the md5 hex below (32 bits);
+            # fine with per-session rotation and short sessions, widen the alphabet if
+            # sessions get long.
+            new_password = secrets.token_urlsafe(16)
+
             # Deploy the app
-            deploy_app(
+            created = deploy_app(
                 username=target_user.username,
                 pod_name=pod.pod_name,
                 app_name=app_name.lower(),
                 image=app.image,
-                vnc_password=hashlib.md5(pod.pod_vnc_password.encode("utf-8")).hexdigest(),
+                vnc_password=hashlib.md5(new_password.encode("utf-8")).hexdigest(),
                 user_hostname=cleaned_username,
                 readonly=readonly_volume,
                 app_type=app.app_type,
             )
+            if created:
+                pod.pod_vnc_password = new_password
 
             pod.is_deployed = True
             pod.save()
@@ -404,8 +443,12 @@ class StartPodView(APIView):
                 }
             )
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception("Starting %s for %s failed", app_name, target_user.username)
+            return Response(
+                {"error": "Could not start the application"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class StopPodView(APIView):
@@ -414,17 +457,9 @@ class StopPodView(APIView):
     permission_classes = [IsAuthenticated, CanAccessApp]
 
     def post(self, request, app_name):
-        user = request.user
-        user_id = request.data.get("user_id")
-
-        # Handle user_id for admin/teacher roles
-        if user_id and user.role not in [DefaultUser.STUDENT, DefaultUser.GUEST]:
-            try:
-                target_user = DefaultUser.objects.get(id=user_id)
-            except DefaultUser.DoesNotExist:
-                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            target_user = user
+        target_user, error = _target_user(request)
+        if error:
+            return error
 
         # Get pod - let Http404 propagate naturally
         pod = get_object_or_404(Pod, pod_user=target_user, app_name=app_name)
@@ -483,8 +518,12 @@ class StopPodView(APIView):
                 {"status": "stopped", "message": "Pod stopped successfully", "pod_name": pod_name}
             )
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            logger.exception("Stopping %s for %s failed", app_name, target_user.username)
+            return Response(
+                {"error": "Could not stop the application"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class FileExplorerView(APIView):
@@ -544,7 +583,7 @@ class FileExplorerView(APIView):
         # Get directory contents
         try:
             files, directories = get_sub_files_secure(user_path, validated_path)
-        except (OSError, IOError):
+        except OSError, IOError:
             return Response(
                 {"error": "Unable to access directory"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -642,7 +681,8 @@ class FileExplorerView(APIView):
             # Ensure we're not overwriting existing files
             counter = 1
             original_name, ext = os.path.splitext(clean_filename)
-            while os.path.exists(save_path):
+            # lexists: a dangling symlink also counts as taken (see save_file_secure)
+            while os.path.lexists(save_path):
                 clean_filename = f"{original_name}_{counter}{ext}"
                 save_path = os.path.join(save_dir, clean_filename)
                 counter += 1
@@ -674,7 +714,7 @@ class FileExplorerView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        except (IOError, OSError):
+        except IOError, OSError:
             return Response(
                 {"error": "Error saving file"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -747,9 +787,9 @@ class FileExplorerView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        except (SuspiciousOperation, UnicodeDecodeError, binascii.Error):
+        except SuspiciousOperation, UnicodeDecodeError, binascii.Error:
             return Response({"error": "Invalid path encoding"}, status=status.HTTP_400_BAD_REQUEST)
-        except (IOError, OSError):
+        except IOError, OSError:
             return Response(
                 {"error": "Error deleting file"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -814,7 +854,7 @@ class DownloadFileView(APIView):
             except IOError:
                 raise Http404("Cannot access file")
 
-        except (SuspiciousOperation, UnicodeDecodeError, binascii.Error):
+        except SuspiciousOperation, UnicodeDecodeError, binascii.Error:
             raise Http404("Invalid request")
 
 
@@ -858,7 +898,10 @@ class UserActivitiesView(APIView):
             )
 
         # Pagination
-        page_size = int(request.GET.get("page_size", 50))
+        try:
+            page_size = min(max(int(request.GET.get("page_size", 50)), 1), 200)
+        except ValueError:
+            page_size = 50
         paginator = Paginator(activities, page_size)
         page_number = request.GET.get("page", 1)
         page_obj = paginator.get_page(page_number)

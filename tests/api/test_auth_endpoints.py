@@ -58,6 +58,47 @@ class TestSignupEndpoint:
         assert DefaultUser.objects.filter(username="newuser").exists()
 
     @responses.activate
+    def test_signup_cannot_choose_role(self, api_client):
+        """A client-supplied role is ignored: self-signup is always a student."""
+        from main.models import AccessGroup, DefaultUser
+
+        mock_turnstile_success()
+        data = {
+            "username": "wannabeadmin",
+            "email": "wannabe@example.com",
+            "password": "securePass123!",
+            "password_confirm": "securePass123!",
+            "role": DefaultUser.ADMIN,
+            "turnstile_token": "test-token",
+        }
+        response = api_client.post("/auth/signup/", data, format="json")
+
+        assert response.status_code == status.HTTP_201_CREATED
+        user = DefaultUser.objects.get(username="wannabeadmin")
+        assert user.role == DefaultUser.STUDENT
+        assert not user.is_staff
+        assert user.group.name == AccessGroup.GUEST
+
+    @responses.activate
+    def test_signup_rejects_lab_hostname_collision(self, api_client):
+        """ "a-b" and "a_b" would share a lab hostname, so the second is refused."""
+        from main.models import DefaultUser
+
+        DefaultUser.objects.create_user(username="lab_user", email="lab@example.com", password="x")
+        mock_turnstile_success()
+        data = {
+            "username": "Lab-User",
+            "email": "lab2@example.com",
+            "password": "securePass123!",
+            "password_confirm": "securePass123!",
+            "turnstile_token": "test-token",
+        }
+        response = api_client.post("/auth/signup/", data, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "username" in response.data
+
+    @responses.activate
     def test_signup_password_mismatch(self, api_client):
         """Test signup with mismatched passwords fails."""
         mock_turnstile_success()
@@ -391,7 +432,7 @@ class TestLogout:
         response = api_client.post(
             "/auth/logout/",
             {
-                "refresh": refresh_token,
+                "refresh_token": refresh_token,
             },
             format="json",
         )
@@ -402,3 +443,18 @@ class TestLogout:
             status.HTTP_204_NO_CONTENT,
             status.HTTP_205_RESET_CONTENT,
         ]
+
+        # The refresh token is revoked, not just forgotten by the client
+        api_client.credentials()
+        refreshed = api_client.post("/auth/refresh/", {"refresh": refresh_token}, format="json")
+        assert refreshed.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_guest_logout_with_bad_refresh_token_still_deletes_guest(self, api_client, guest_user):
+        """A junk refresh token must not skip guest account deletion."""
+        from main.models import DefaultUser
+
+        api_client.force_authenticate(user=guest_user)
+        response = api_client.post("/auth/logout/", {"refresh_token": "not-a-jwt"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert not DefaultUser.objects.filter(pk=guest_user.pk).exists()
